@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Omega.WebClient", "Omega.We
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Omega.API", "Omega.API\Omega.API.csproj", "{4797476E-D9CB-4740-B21D-AF3CAF2B5C6A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Omega.Core", "Omega.Core\Omega.Core.csproj", "{8740A948-8051-4078-9028-4570E737CC31}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,18 @@ Global
 		{4797476E-D9CB-4740-B21D-AF3CAF2B5C6A}.Release|x64.Build.0 = Release|Any CPU
 		{4797476E-D9CB-4740-B21D-AF3CAF2B5C6A}.Release|x86.ActiveCfg = Release|Any CPU
 		{4797476E-D9CB-4740-B21D-AF3CAF2B5C6A}.Release|x86.Build.0 = Release|Any CPU
+		{8740A948-8051-4078-9028-4570E737CC31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8740A948-8051-4078-9028-4570E737CC31}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8740A948-8051-4078-9028-4570E737CC31}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8740A948-8051-4078-9028-4570E737CC31}.Debug|x64.Build.0 = Debug|Any CPU
+		{8740A948-8051-4078-9028-4570E737CC31}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8740A948-8051-4078-9028-4570E737CC31}.Debug|x86.Build.0 = Debug|Any CPU
+		{8740A948-8051-4078-9028-4570E737CC31}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8740A948-8051-4078-9028-4570E737CC31}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8740A948-8051-4078-9028-4570E737CC31}.Release|x64.ActiveCfg = Release|Any CPU
+		{8740A948-8051-4078-9028-4570E737CC31}.Release|x64.Build.0 = Release|Any CPU
+		{8740A948-8051-4078-9028-4570E737CC31}.Release|x86.ActiveCfg = Release|Any CPU
+		{8740A948-8051-4078-9028-4570E737CC31}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
