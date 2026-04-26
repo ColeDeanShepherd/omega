@@ -1,5 +1,51 @@
 @page "/"
+@inject IApiClient ApiClient
 
 <PageTitle>To-Do</PageTitle>
 
 <h1>To-Do</h1>
+
+<p>This component loads to-do items from the API, which reads a server-side JSON file.</p>
+
+@if (isLoading)
+{
+	<p><em>Loading...</em></p>
+}
+else if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+	<div class="alert alert-danger" role="alert">
+		@errorMessage
+	</div>
+}
+else if (todos is { Count: > 0 })
+{
+	<ul class="list-group">
+		@foreach (var todo in todos)
+		{
+			<li class="list-group-item d-flex justify-content-between align-items-center">
+				<span>@todo.Title</span>
+				<span class="badge @(todo.IsComplete ? "text-bg-success" : "text-bg-secondary")">
+					@(todo.IsComplete ? "Done" : "Open")
+				</span>
+			</li>
+		}
+	</ul>
+}
+else
+{
+	<p>No to-do items were returned by the API.</p>
+}
+
+@code {
+	private IReadOnlyList<TodoItem>? todos;
+	private bool isLoading = true;
+	private string? errorMessage;
+
+	protected override async Task OnInitializedAsync()
+	{
+		var result = await ApiClient.GetTodosAsync();
+		todos = result.Todos;
+		errorMessage = result.ErrorMessage;
+		isLoading = false;
+	}
+}
