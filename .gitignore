@@ -11,9 +11,6 @@
 [Bb]in/
 [Oo]bj/
 
-# Visual Studio Code files
-.vscode/
-
 # Rider files
 .idea/
 
