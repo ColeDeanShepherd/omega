@@ -5,7 +5,23 @@
 
 <h1>To-Do</h1>
 
-<p>This component loads to-do items from the API, which reads a server-side JSON file.</p>
+<form class="row g-2 mb-3" @onsubmit="HandleAddTodoAsync" @onsubmit:preventDefault="true">
+	<div class="col-md-9">
+		<input class="form-control" @bind="newTodoTitle" placeholder="Add a new to-do" />
+	</div>
+	<div class="col-md-3">
+		<button class="btn btn-primary w-100" type="submit" disabled="@isSubmittingTodo">
+			@(isSubmittingTodo ? "Adding..." : "Add")
+		</button>
+	</div>
+</form>
+
+@if (!string.IsNullOrWhiteSpace(addTodoErrorMessage))
+{
+	<div class="alert alert-warning" role="alert">
+		@addTodoErrorMessage
+	</div>
+}
 
 @if (isLoading)
 {
@@ -40,9 +56,44 @@ else
 	private IReadOnlyList<TodoItem>? todos;
 	private bool isLoading = true;
 	private string? errorMessage;
+	private string newTodoTitle = string.Empty;
+	private bool isSubmittingTodo;
+	private string? addTodoErrorMessage;
 
 	protected override async Task OnInitializedAsync()
 	{
+		await LoadTodosAsync();
+	}
+
+	private async Task HandleAddTodoAsync()
+	{
+		addTodoErrorMessage = null;
+
+		var title = newTodoTitle.Trim();
+
+		if (string.IsNullOrWhiteSpace(title))
+		{
+			addTodoErrorMessage = "Enter a title before adding a to-do item.";
+			return;
+		}
+
+		isSubmittingTodo = true;
+		var addResult = await ApiClient.AddTodoAsync(title);
+		isSubmittingTodo = false;
+
+		if (!string.IsNullOrWhiteSpace(addResult.ErrorMessage))
+		{
+			addTodoErrorMessage = addResult.ErrorMessage;
+			return;
+		}
+
+		newTodoTitle = string.Empty;
+		await LoadTodosAsync();
+	}
+
+	private async Task LoadTodosAsync()
+	{
+		isLoading = true;
 		var result = await ApiClient.GetTodosAsync();
 		todos = result.Todos;
 		errorMessage = result.ErrorMessage;

@@ -6,6 +6,7 @@ namespace Omega.WebClient.Services;
 public interface IApiClient
 {
     Task<TodoApiResult> GetTodosAsync(CancellationToken cancellationToken = default);
+    Task<AddTodoApiResult> AddTodoAsync(string title, CancellationToken cancellationToken = default);
 }
 
 public sealed class ApiClient(HttpClient httpClient, IConfiguration configuration) : IApiClient
@@ -31,6 +32,50 @@ public sealed class ApiClient(HttpClient httpClient, IConfiguration configuratio
             return TodoApiResult.Failure($"Failed to load to-do items: {ex.Message}");
         }
     }
+
+    public async Task<AddTodoApiResult> AddTodoAsync(string title, CancellationToken cancellationToken = default)
+    {
+        var apiBaseUrl = configuration["ApiBaseUrl"];
+
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            return AddTodoApiResult.Failure("Client configuration is missing ApiBaseUrl.");
+        }
+
+        var trimmedTitle = title?.Trim();
+
+        if (string.IsNullOrWhiteSpace(trimmedTitle))
+        {
+            return AddTodoApiResult.Failure("Enter a title before adding a to-do item.");
+        }
+
+        var todosUri = $"{apiBaseUrl.TrimEnd('/')}/api/todos";
+
+        try
+        {
+            var response = await httpClient.PostAsJsonAsync(todosUri, new CreateTodoRequest(trimmedTitle), cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                var errorMessage = string.IsNullOrWhiteSpace(errorContent)
+                    ? $"Failed to add to-do item. HTTP {(int)response.StatusCode}."
+                    : $"Failed to add to-do item. {errorContent}";
+
+                return AddTodoApiResult.Failure(errorMessage);
+            }
+
+            var createdTodo = await response.Content.ReadFromJsonAsync<TodoItem>(cancellationToken: cancellationToken);
+
+            return createdTodo is null
+                ? AddTodoApiResult.Failure("The API did not return the created to-do item.")
+                : AddTodoApiResult.Success(createdTodo);
+        }
+        catch (Exception ex)
+        {
+            return AddTodoApiResult.Failure($"Failed to add to-do item: {ex.Message}");
+        }
+    }
 }
 
 public sealed record TodoApiResult(IReadOnlyList<TodoItem> Todos, string? ErrorMessage)
@@ -39,4 +84,12 @@ public sealed record TodoApiResult(IReadOnlyList<TodoItem> Todos, string? ErrorM
 
     public static TodoApiResult Failure(string errorMessage) =>
         new(Array.Empty<TodoItem>(), errorMessage);
+}
+
+public sealed record AddTodoApiResult(TodoItem? Todo, string? ErrorMessage)
+{
+    public static AddTodoApiResult Success(TodoItem todo) => new(todo, null);
+
+    public static AddTodoApiResult Failure(string errorMessage) =>
+        new(null, errorMessage);
 }

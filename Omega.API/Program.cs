@@ -50,4 +50,20 @@ app.MapGet("/api/todos", async (ITodoService todoService, CancellationToken canc
 })
 .WithName("GetTodos");
 
+app.MapPost("/api/todos", async (CreateTodoRequest request, ITodoService todoService, CancellationToken cancellationToken) =>
+{
+    var result = await todoService.AddTodoAsync(request.Title, cancellationToken);
+
+    if (result.Error is not null)
+    {
+        return Results.Problem(
+            title: result.Error.Title,
+            detail: result.Error.Detail,
+            statusCode: result.Error.StatusCode);
+    }
+
+    return Results.Created($"/api/todos/{result.Todo!.Id}", result.Todo);
+})
+.WithName("AddTodo");
+
 app.Run();
