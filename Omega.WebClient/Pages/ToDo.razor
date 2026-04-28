@@ -43,7 +43,7 @@ else if (!string.IsNullOrWhiteSpace(errorMessage))
 else if (todos is { Count: > 0 })
 {
 	<ul class="list-group">
-		@foreach (var todo in todos)
+		@foreach (var todo in todos.OrderBy(todo => todo.IsComplete).ThenBy(todo => todo.Id))
 		{
 			<li class="list-group-item d-flex justify-content-between align-items-center">
 				<div class="d-flex align-items-center gap-2">
