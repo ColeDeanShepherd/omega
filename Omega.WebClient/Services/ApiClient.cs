@@ -7,6 +7,7 @@ public interface IApiClient
 {
     Task<TodoApiResult> GetTodosAsync(CancellationToken cancellationToken = default);
     Task<AddTodoApiResult> AddTodoAsync(string title, CancellationToken cancellationToken = default);
+    Task<SetTodoCompletionApiResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default);
 }
 
 public sealed class ApiClient(HttpClient httpClient, IConfiguration configuration) : IApiClient
@@ -76,6 +77,51 @@ public sealed class ApiClient(HttpClient httpClient, IConfiguration configuratio
             return AddTodoApiResult.Failure($"Failed to add to-do item: {ex.Message}");
         }
     }
+
+    public async Task<SetTodoCompletionApiResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default)
+    {
+        var apiBaseUrl = configuration["ApiBaseUrl"];
+
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            return SetTodoCompletionApiResult.Failure("Client configuration is missing ApiBaseUrl.");
+        }
+
+        if (id <= 0)
+        {
+            return SetTodoCompletionApiResult.Failure("The to-do id must be greater than zero.");
+        }
+
+        var completionUri = $"{apiBaseUrl.TrimEnd('/')}/api/todos/{id}/completion";
+
+        try
+        {
+            var response = await httpClient.PatchAsJsonAsync(
+                completionUri,
+                new SetTodoCompletionRequest(isComplete),
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                var errorMessage = string.IsNullOrWhiteSpace(errorContent)
+                    ? $"Failed to update to-do status. HTTP {(int)response.StatusCode}."
+                    : $"Failed to update to-do status. {errorContent}";
+
+                return SetTodoCompletionApiResult.Failure(errorMessage);
+            }
+
+            var updatedTodo = await response.Content.ReadFromJsonAsync<TodoItem>(cancellationToken: cancellationToken);
+
+            return updatedTodo is null
+                ? SetTodoCompletionApiResult.Failure("The API did not return the updated to-do item.")
+                : SetTodoCompletionApiResult.Success(updatedTodo);
+        }
+        catch (Exception ex)
+        {
+            return SetTodoCompletionApiResult.Failure($"Failed to update to-do status: {ex.Message}");
+        }
+    }
 }
 
 public sealed record TodoApiResult(IReadOnlyList<TodoItem> Todos, string? ErrorMessage)
@@ -91,5 +137,13 @@ public sealed record AddTodoApiResult(TodoItem? Todo, string? ErrorMessage)
     public static AddTodoApiResult Success(TodoItem todo) => new(todo, null);
 
     public static AddTodoApiResult Failure(string errorMessage) =>
+        new(null, errorMessage);
+}
+
+public sealed record SetTodoCompletionApiResult(TodoItem? Todo, string? ErrorMessage)
+{
+    public static SetTodoCompletionApiResult Success(TodoItem todo) => new(todo, null);
+
+    public static SetTodoCompletionApiResult Failure(string errorMessage) =>
         new(null, errorMessage);
 }

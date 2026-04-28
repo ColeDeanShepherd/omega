@@ -66,4 +66,24 @@ app.MapPost("/api/todos", async (CreateTodoRequest request, ITodoService todoSer
 })
 .WithName("AddTodo");
 
+app.MapPatch("/api/todos/{id:int}/completion", async (
+    int id,
+    SetTodoCompletionRequest request,
+    ITodoService todoService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await todoService.SetTodoCompletionAsync(id, request.IsComplete, cancellationToken);
+
+    if (result.Error is not null)
+    {
+        return Results.Problem(
+            title: result.Error.Title,
+            detail: result.Error.Detail,
+            statusCode: result.Error.StatusCode);
+    }
+
+    return Results.Ok(result.Todo);
+})
+.WithName("SetTodoCompletion");
+
 app.Run();

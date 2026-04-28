@@ -9,6 +9,7 @@ public interface ITodoService
 {
     Task<TodoServiceResult> GetTodosAsync(CancellationToken cancellationToken = default);
     Task<AddTodoServiceResult> AddTodoAsync(string title, CancellationToken cancellationToken = default);
+    Task<SetTodoCompletionServiceResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default);
 }
 
 public sealed class TodoService(
@@ -87,6 +88,64 @@ public sealed class TodoService(
         }
 
         return AddTodoServiceResult.Success(newTodo);
+    }
+
+    public async Task<SetTodoCompletionServiceResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default)
+    {
+        if (id <= 0)
+        {
+            return SetTodoCompletionServiceResult.Failure(
+                title: "Invalid to-do id",
+                detail: "The to-do id must be greater than zero.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var todoFilePathResult = GetValidatedTodoFilePath();
+
+        if (todoFilePathResult.Error is not null)
+        {
+            return SetTodoCompletionServiceResult.Failure(
+                todoFilePathResult.Error.Title,
+                todoFilePathResult.Error.Detail,
+                todoFilePathResult.Error.StatusCode);
+        }
+
+        var readResult = await ReadTodosAsync(todoFilePathResult.FilePath!, cancellationToken);
+
+        if (readResult.Error is not null)
+        {
+            return SetTodoCompletionServiceResult.Failure(
+                readResult.Error.Title,
+                readResult.Error.Detail,
+                readResult.Error.StatusCode);
+        }
+
+        var todoToUpdate = readResult.Todos.FirstOrDefault(todo => todo.Id == id);
+
+        if (todoToUpdate is null)
+        {
+            return SetTodoCompletionServiceResult.Failure(
+                title: "To-do item not found",
+                detail: "No to-do item exists for the requested id.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        var updatedTodo = todoToUpdate with { IsComplete = isComplete };
+        var updatedTodos = readResult.Todos
+            .Select(todo => todo.Id == id ? updatedTodo : todo)
+            .ToArray();
+
+        var writeResult = await WriteTodosAsync(todoFilePathResult.FilePath!, updatedTodos, cancellationToken);
+
+        if (writeResult is not null)
+        {
+            return SetTodoCompletionServiceResult.Failure(
+                writeResult.Title,
+                writeResult.Detail,
+                writeResult.StatusCode);
+        }
+
+        return SetTodoCompletionServiceResult.Success(updatedTodo);
     }
 
     private (string? FilePath, TodoServiceError? Error) GetValidatedTodoFilePath()
@@ -213,6 +272,14 @@ public sealed record AddTodoServiceResult(TodoItem? Todo, TodoServiceError? Erro
     public static AddTodoServiceResult Success(TodoItem todo) => new(todo, null);
 
     public static AddTodoServiceResult Failure(string title, string detail, int statusCode) =>
+        new(null, new TodoServiceError(title, detail, statusCode));
+}
+
+public sealed record SetTodoCompletionServiceResult(TodoItem? Todo, TodoServiceError? Error)
+{
+    public static SetTodoCompletionServiceResult Success(TodoItem todo) => new(todo, null);
+
+    public static SetTodoCompletionServiceResult Failure(string title, string detail, int statusCode) =>
         new(null, new TodoServiceError(title, detail, statusCode));
 }
 
