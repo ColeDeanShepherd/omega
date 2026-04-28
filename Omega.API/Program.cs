@@ -6,7 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<ITodoService, TodoService>();
-builder.Services.Configure<TodoFileSettings>(builder.Configuration.GetSection(TodoFileSettings.SectionName));
+builder.Services.Configure<DataStoreSettings>(builder.Configuration.GetSection(DataStoreSettings.SectionName));
 
 var webClientOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")

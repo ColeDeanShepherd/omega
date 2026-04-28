@@ -12,17 +12,17 @@ public interface ITodoService
 
 public sealed class TodoService(
     ILogger<TodoService> logger,
-    IOptions<TodoFileSettings> todoFileSettingsOptions) : ITodoService
+    IOptions<DataStoreSettings> todoFileSettingsOptions) : ITodoService
 {
     public async Task<TodoServiceResult> GetTodosAsync(CancellationToken cancellationToken = default)
     {
-        var todoFilePath = todoFileSettingsOptions.Value.Path;
+        var todoFilePath = todoFileSettingsOptions.Value.TodoFilePath;
 
         if (string.IsNullOrWhiteSpace(todoFilePath))
         {
             return TodoServiceResult.Failure(
                 title: "Todo file path is not configured",
-                detail: $"Set '{TodoFileSettings.SectionName}:Path' in configuration to an absolute path for a JSON file.",
+                detail: $"Set '{DataStoreSettings.SectionName}:TodoFilePath' in configuration to an absolute path for a JSON file.",
                 statusCode: StatusCodes.Status500InternalServerError);
         }
 
@@ -30,7 +30,7 @@ public sealed class TodoService(
         {
             return TodoServiceResult.Failure(
                 title: "Todo file path must be absolute",
-                detail: $"Configuration key '{TodoFileSettings.SectionName}:Path' must contain an absolute file path.",
+                detail: $"Configuration key '{DataStoreSettings.SectionName}:TodoFilePath' must contain an absolute file path.",
                 statusCode: StatusCodes.Status500InternalServerError);
         }
 

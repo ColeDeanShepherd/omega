@@ -1,8 +1,8 @@
 namespace Omega.API.Settings;
 
-public sealed class TodoFileSettings
+public sealed class DataStoreSettings
 {
-    public const string SectionName = "TodoFile";
+    public const string SectionName = "DataStore";
 
-    public string? Path { get; init; }
+    public string? TodoFilePath { get; init; }
 }
