@@ -161,7 +161,7 @@ else
 
 	private static void AppendEntries(IReadOnlyList<TodoItem> source, int depth, ICollection<TodoListEntry> destination)
 	{
-		foreach (var todo in source.OrderBy(todo => todo.IsComplete).ThenBy(todo => todo.Id))
+		foreach (var todo in source)
 		{
 			destination.Add(new TodoListEntry(todo, depth));
 
