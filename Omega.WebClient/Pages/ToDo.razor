@@ -60,6 +60,13 @@
 	</div>
 }
 
+@if (!string.IsNullOrWhiteSpace(moveTodoErrorMessage))
+{
+	<div class="alert alert-warning" role="alert">
+		@moveTodoErrorMessage
+	</div>
+}
+
 @if (isLoading)
 {
 	<p><em>Loading...</em></p>
@@ -76,6 +83,8 @@ else if (todos is { Count: > 0 })
 		@foreach (var entry in todoEntries)
 		{
 			var todo = entry.Todo;
+			var canMoveUp = entry.SiblingIndex > 0;
+			var canMoveDown = entry.SiblingIndex < entry.SiblingCount - 1;
 
 			<li class="list-group-item"
 				style="@GetTodoIndentStyle(entry.Depth)">
@@ -84,14 +93,14 @@ else if (todos is { Count: > 0 })
 						<input class="form-check-input mt-0"
 							type="checkbox"
 							checked="@todo.IsComplete"
-							disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id)"
+							disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id)"
 							@onchange="() => HandleToggleTodoAsync(todo)" />
 						@if (editingTodoId == todo.Id)
 						{
 							<input class="form-control form-control-sm"
 								type="text"
 								value="@editingTodoTitle"
-								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id))"
+								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id))"
 								@onchange="(ChangeEventArgs e) => editingTodoTitle = e?.Value?.ToString() ?? string.Empty"
 								@onkeydown="(KeyboardEventArgs e) => HandleEditKeydownAsync(e, todo)" />
 						}
@@ -102,18 +111,33 @@ else if (todos is { Count: > 0 })
 						</div>
 
 					<div class="d-flex gap-2">
+						<button class="btn btn-sm btn-outline-secondary"
+								type="button"
+								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id || !canMoveUp)"
+								aria-label="Move up"
+								@onclick="() => HandleMoveTodoAsync(todo, true)">
+							<i class="bi bi-arrow-up" aria-hidden="true"></i>
+						</button>
+						<button class="btn btn-sm btn-outline-secondary"
+								type="button"
+								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id || !canMoveDown)"
+								aria-label="Move down"
+								@onclick="() => HandleMoveTodoAsync(todo, false)">
+							<i class="bi bi-arrow-down" aria-hidden="true"></i>
+						</button>
+
 						@if (editingTodoId == todo.Id)
 						{
 							<button class="btn btn-sm btn-success"
 									type="button"
-									disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id))"
+									disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id))"
 									aria-label="Save"
 									@onclick="() => HandleSaveEditAsync(todo)">
 								<i class="bi bi-check" aria-hidden="true"></i>
 							</button>
 							<button class="btn btn-sm btn-secondary"
 									type="button"
-									disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id))"
+									disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id))"
 									aria-label="Cancel"
 									@onclick="CancelEdit">
 								<i class="bi bi-x" aria-hidden="true"></i>
@@ -123,7 +147,7 @@ else if (todos is { Count: > 0 })
 						{
 							<button class="btn btn-sm btn-outline-secondary"
 									type="button"
-									disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id))"
+									disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id))"
 									aria-label="Edit"
 									@onclick="() => HandleStartEditAsync(todo)">
 								<i class="bi bi-pencil" aria-hidden="true"></i>
@@ -132,7 +156,7 @@ else if (todos is { Count: > 0 })
 
 						<button class="btn btn-sm btn-outline-danger"
 								type="button"
-								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id)"
+								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id)"
 								aria-label="Delete"
 								@onclick="() => HandleDeleteTodoAsync(todo)">
 							@if (deletingTodoIds.Contains(todo.Id))
@@ -191,9 +215,11 @@ else
 	private string? toggleTodoErrorMessage;
 	private string? deleteTodoErrorMessage;
 	private string? updateTodoErrorMessage;
+	private string? moveTodoErrorMessage;
 	private AddTodoKind selectedAddTodoKind = AddTodoKind.StandardTodo;
 	private HashSet<int> togglingTodoIds = [];
 	private HashSet<int> deletingTodoIds = [];
+	private HashSet<int> movingTodoIds = [];
 	private IReadOnlyList<TodoListEntry> todoEntries = [];
 	private TodoItem? pendingDeleteTodo;
 	private int? editingTodoId;
@@ -222,6 +248,7 @@ else
 		addTodoErrorMessage = null;
 		toggleTodoErrorMessage = null;
 		deleteTodoErrorMessage = null;
+		moveTodoErrorMessage = null;
 
 		var title = newTodoTitle.Trim();
 
@@ -287,6 +314,7 @@ else
 	{
 		toggleTodoErrorMessage = null;
 		deleteTodoErrorMessage = null;
+		moveTodoErrorMessage = null;
 		togglingTodoIds.Add(todo.Id);
 
 		var result = await ApiClient.SetTodoCompletionAsync(todo.Id, !todo.IsComplete);
@@ -306,7 +334,28 @@ else
 	{
 		deleteTodoErrorMessage = null;
 		toggleTodoErrorMessage = null;
+		moveTodoErrorMessage = null;
 		pendingDeleteTodo = todo;
+	}
+
+	private async Task HandleMoveTodoAsync(TodoItem todo, bool moveUp)
+	{
+		moveTodoErrorMessage = null;
+		deleteTodoErrorMessage = null;
+		toggleTodoErrorMessage = null;
+		movingTodoIds.Add(todo.Id);
+
+		var result = await ApiClient.MoveTodoAsync(todo.Id, moveUp);
+
+		movingTodoIds.Remove(todo.Id);
+
+		if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+		{
+			moveTodoErrorMessage = result.ErrorMessage;
+			return;
+		}
+
+		await LoadTodosAsync();
 	}
 
 	private void CancelDelete()
@@ -403,19 +452,20 @@ else
 	private static IReadOnlyList<TodoListEntry> BuildTodoEntries(IReadOnlyList<TodoItem> source)
 	{
 		var orderedEntries = new List<TodoListEntry>();
-		AppendEntries(source, 0, orderedEntries);
+		AppendEntries(source, 0, null, orderedEntries);
 		return orderedEntries;
 	}
 
-	private static void AppendEntries(IReadOnlyList<TodoItem> source, int depth, ICollection<TodoListEntry> destination)
+	private static void AppendEntries(IReadOnlyList<TodoItem> source, int depth, int? parentId, ICollection<TodoListEntry> destination)
 	{
-		foreach (var todo in source)
+		for (var i = 0; i < source.Count; i++)
 		{
-			destination.Add(new TodoListEntry(todo, depth));
+			var todo = source[i];
+			destination.Add(new TodoListEntry(todo, depth, parentId, i, source.Count));
 
 			if (todo.Children.Count > 0)
 			{
-				AppendEntries(todo.Children, depth + 1, destination);
+				AppendEntries(todo.Children, depth + 1, todo.Id, destination);
 			}
 		}
 	}
@@ -428,5 +478,5 @@ else
 		ChangeOmega
 	}
 
-	private sealed record TodoListEntry(TodoItem Todo, int Depth);
+	private sealed record TodoListEntry(TodoItem Todo, int Depth, int? ParentId, int SiblingIndex, int SiblingCount);
 }

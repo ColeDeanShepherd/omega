@@ -9,6 +9,7 @@ public interface IApiClient
     Task<AddTodoApiResult> AddTodoAsync(string title, int? parentId = null, CancellationToken cancellationToken = default);
     Task<SetTodoCompletionApiResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default);
     Task<UpdateTodoTitleApiResult> UpdateTodoTitleAsync(int id, string title, CancellationToken cancellationToken = default);
+    Task<MoveTodoApiResult> MoveTodoAsync(int id, bool moveUp, CancellationToken cancellationToken = default);
     Task<DeleteTodoApiResult> DeleteTodoAsync(int id, bool promoteChildren = false, CancellationToken cancellationToken = default);
 }
 
@@ -182,6 +183,51 @@ public sealed class ApiClient(HttpClient httpClient, IConfiguration configuratio
         }
     }
 
+    public async Task<MoveTodoApiResult> MoveTodoAsync(int id, bool moveUp, CancellationToken cancellationToken = default)
+    {
+        var apiBaseUrl = configuration["ApiBaseUrl"];
+
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            return MoveTodoApiResult.Failure("Client configuration is missing ApiBaseUrl.");
+        }
+
+        if (id <= 0)
+        {
+            return MoveTodoApiResult.Failure("The to-do id must be greater than zero.");
+        }
+
+        var positionUri = $"{apiBaseUrl.TrimEnd('/')}/api/todos/{id}/position";
+
+        try
+        {
+            var response = await httpClient.PatchAsJsonAsync(
+                positionUri,
+                new MoveTodoRequest(moveUp),
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                var errorMessage = string.IsNullOrWhiteSpace(errorContent)
+                    ? $"Failed to move to-do item. HTTP {(int)response.StatusCode}."
+                    : $"Failed to move to-do item. {errorContent}";
+
+                return MoveTodoApiResult.Failure(errorMessage);
+            }
+
+            var updatedTodo = await response.Content.ReadFromJsonAsync<TodoItem>(cancellationToken: cancellationToken);
+
+            return updatedTodo is null
+                ? MoveTodoApiResult.Failure("The API did not return the moved to-do item.")
+                : MoveTodoApiResult.Success(updatedTodo);
+        }
+        catch (Exception ex)
+        {
+            return MoveTodoApiResult.Failure($"Failed to move to-do item: {ex.Message}");
+        }
+    }
+
     public async Task<DeleteTodoApiResult> DeleteTodoAsync(int id, bool promoteChildren = false, CancellationToken cancellationToken = default)
     {
         var apiBaseUrl = configuration["ApiBaseUrl"];
@@ -252,6 +298,14 @@ public sealed record UpdateTodoTitleApiResult(TodoItem? Todo, string? ErrorMessa
     public static UpdateTodoTitleApiResult Success(TodoItem todo) => new(todo, null);
 
     public static UpdateTodoTitleApiResult Failure(string errorMessage) =>
+        new(null, errorMessage);
+}
+
+public sealed record MoveTodoApiResult(TodoItem? Todo, string? ErrorMessage)
+{
+    public static MoveTodoApiResult Success(TodoItem todo) => new(todo, null);
+
+    public static MoveTodoApiResult Failure(string errorMessage) =>
         new(null, errorMessage);
 }
 
