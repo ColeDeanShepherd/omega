@@ -70,7 +70,7 @@ else if (todos is { Count: > 0 })
 						@onclick="() => HandleToggleTodoAsync(todo)">
 					@(togglingTodoIds.Contains(todo.Id)
 						? "Saving..."
-						: (todo.IsComplete ? "Mark Open" : "Mark Done"))
+						: (todo.IsComplete ? "Mark Not Done" : "Mark Done"))
 				</button>
 			</li>
 		}
