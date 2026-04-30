@@ -10,6 +10,7 @@ public interface ITodoService
     Task<TodoServiceResult> GetTodosAsync(CancellationToken cancellationToken = default);
     Task<AddTodoServiceResult> AddTodoAsync(string title, int? parentId = null, CancellationToken cancellationToken = default);
     Task<SetTodoCompletionServiceResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default);
+    Task<UpdateTodoTitleServiceResult> UpdateTodoTitleAsync(int id, string title, CancellationToken cancellationToken = default);
     Task<DeleteTodoServiceResult> DeleteTodoAsync(int id, bool promoteChildren = false, CancellationToken cancellationToken = default);
 }
 
@@ -197,6 +198,67 @@ public sealed class TodoService(
         return SetTodoCompletionServiceResult.Success(updatedTodo);
     }
 
+    public async Task<UpdateTodoTitleServiceResult> UpdateTodoTitleAsync(int id, string title, CancellationToken cancellationToken = default)
+    {
+        var trimmedTitle = title?.Trim();
+
+        if (string.IsNullOrWhiteSpace(trimmedTitle))
+        {
+            return UpdateTodoTitleServiceResult.Failure(
+                title: "Todo title is required",
+                detail: "Provide a non-empty title when updating a to-do item.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (id <= 0)
+        {
+            return UpdateTodoTitleServiceResult.Failure(
+                title: "Invalid to-do id",
+                detail: "The to-do id must be greater than zero.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var todoFilePathResult = GetValidatedTodoFilePath();
+
+        if (todoFilePathResult.Error is not null)
+        {
+            return UpdateTodoTitleServiceResult.Failure(
+                todoFilePathResult.Error.Title,
+                todoFilePathResult.Error.Detail,
+                todoFilePathResult.Error.StatusCode);
+        }
+
+        var readResult = await ReadTodosAsync(todoFilePathResult.FilePath!, cancellationToken);
+
+        if (readResult.Error is not null)
+        {
+            return UpdateTodoTitleServiceResult.Failure(
+                readResult.Error.Title,
+                readResult.Error.Detail,
+                readResult.Error.StatusCode);
+        }
+
+        if (!TryUpdateTodoTitle(readResult.Todos, id, trimmedTitle, out var updatedTodos, out var updatedTodo))
+        {
+            return UpdateTodoTitleServiceResult.Failure(
+                title: "To-do item not found",
+                detail: "No to-do item exists for the requested id.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        var writeResult = await WriteTodosAsync(todoFilePathResult.FilePath!, updatedTodos, cancellationToken);
+
+        if (writeResult is not null)
+        {
+            return UpdateTodoTitleServiceResult.Failure(
+                writeResult.Title,
+                writeResult.Detail,
+                writeResult.StatusCode);
+        }
+
+        return UpdateTodoTitleServiceResult.Success(updatedTodo);
+    }
+
     public async Task<DeleteTodoServiceResult> DeleteTodoAsync(int id, bool promoteChildren = false, CancellationToken cancellationToken = default)
     {
         if (id <= 0)
@@ -301,6 +363,43 @@ public sealed class TodoService(
 
             if (todo.Children.Count > 0 &&
                 TrySetTodoCompletion(todo.Children, id, isComplete, out var updatedChildren, out updatedTodo))
+            {
+                rewrittenTodos.Add(todo with { Children = updatedChildren });
+                rewrittenTodos.AddRange(todos.Skip(rewrittenTodos.Count));
+                updatedTodos = rewrittenTodos;
+                return true;
+            }
+
+            rewrittenTodos.Add(todo);
+        }
+
+        updatedTodos = todos;
+        updatedTodo = default!;
+        return false;
+    }
+
+    private static bool TryUpdateTodoTitle(
+        IReadOnlyList<TodoItem> todos,
+        int id,
+        string newTitle,
+        out IReadOnlyList<TodoItem> updatedTodos,
+        out TodoItem updatedTodo)
+    {
+        var rewrittenTodos = new List<TodoItem>(todos.Count);
+
+        foreach (var todo in todos)
+        {
+            if (todo.Id == id)
+            {
+                updatedTodo = todo with { Title = newTitle };
+                rewrittenTodos.Add(updatedTodo);
+                rewrittenTodos.AddRange(todos.Skip(rewrittenTodos.Count));
+                updatedTodos = rewrittenTodos;
+                return true;
+            }
+
+            if (todo.Children.Count > 0 &&
+                TryUpdateTodoTitle(todo.Children, id, newTitle, out var updatedChildren, out updatedTodo))
             {
                 rewrittenTodos.Add(todo with { Children = updatedChildren });
                 rewrittenTodos.AddRange(todos.Skip(rewrittenTodos.Count));
@@ -516,6 +615,14 @@ public sealed record SetTodoCompletionServiceResult(TodoItem? Todo, TodoServiceE
     public static SetTodoCompletionServiceResult Success(TodoItem todo) => new(todo, null);
 
     public static SetTodoCompletionServiceResult Failure(string title, string detail, int statusCode) =>
+        new(null, new TodoServiceError(title, detail, statusCode));
+}
+
+public sealed record UpdateTodoTitleServiceResult(TodoItem? Todo, TodoServiceError? Error)
+{
+    public static UpdateTodoTitleServiceResult Success(TodoItem todo) => new(todo, null);
+
+    public static UpdateTodoTitleServiceResult Failure(string title, string detail, int statusCode) =>
         new(null, new TodoServiceError(title, detail, statusCode));
 }
 

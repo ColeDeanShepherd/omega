@@ -8,6 +8,7 @@ public interface IApiClient
     Task<TodoApiResult> GetTodosAsync(CancellationToken cancellationToken = default);
     Task<AddTodoApiResult> AddTodoAsync(string title, int? parentId = null, CancellationToken cancellationToken = default);
     Task<SetTodoCompletionApiResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default);
+    Task<UpdateTodoTitleApiResult> UpdateTodoTitleAsync(int id, string title, CancellationToken cancellationToken = default);
     Task<DeleteTodoApiResult> DeleteTodoAsync(int id, bool promoteChildren = false, CancellationToken cancellationToken = default);
 }
 
@@ -129,6 +130,58 @@ public sealed class ApiClient(HttpClient httpClient, IConfiguration configuratio
         }
     }
 
+    public async Task<UpdateTodoTitleApiResult> UpdateTodoTitleAsync(int id, string title, CancellationToken cancellationToken = default)
+    {
+        var apiBaseUrl = configuration["ApiBaseUrl"];
+
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            return UpdateTodoTitleApiResult.Failure("Client configuration is missing ApiBaseUrl.");
+        }
+
+        if (id <= 0)
+        {
+            return UpdateTodoTitleApiResult.Failure("The to-do id must be greater than zero.");
+        }
+
+        var trimmedTitle = title?.Trim();
+
+        if (string.IsNullOrWhiteSpace(trimmedTitle))
+        {
+            return UpdateTodoTitleApiResult.Failure("Enter a title before updating a to-do item.");
+        }
+
+        var titleUri = $"{apiBaseUrl.TrimEnd('/')}/api/todos/{id}/title";
+
+        try
+        {
+            var response = await httpClient.PatchAsJsonAsync(
+                titleUri,
+                new UpdateTodoTitleRequest(trimmedTitle),
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                var errorMessage = string.IsNullOrWhiteSpace(errorContent)
+                    ? $"Failed to update to-do title. HTTP {(int)response.StatusCode}."
+                    : $"Failed to update to-do title. {errorContent}";
+
+                return UpdateTodoTitleApiResult.Failure(errorMessage);
+            }
+
+            var updatedTodo = await response.Content.ReadFromJsonAsync<TodoItem>(cancellationToken: cancellationToken);
+
+            return updatedTodo is null
+                ? UpdateTodoTitleApiResult.Failure("The API did not return the updated to-do item.")
+                : UpdateTodoTitleApiResult.Success(updatedTodo);
+        }
+        catch (Exception ex)
+        {
+            return UpdateTodoTitleApiResult.Failure($"Failed to update to-do title: {ex.Message}");
+        }
+    }
+
     public async Task<DeleteTodoApiResult> DeleteTodoAsync(int id, bool promoteChildren = false, CancellationToken cancellationToken = default)
     {
         var apiBaseUrl = configuration["ApiBaseUrl"];
@@ -191,6 +244,14 @@ public sealed record SetTodoCompletionApiResult(TodoItem? Todo, string? ErrorMes
     public static SetTodoCompletionApiResult Success(TodoItem todo) => new(todo, null);
 
     public static SetTodoCompletionApiResult Failure(string errorMessage) =>
+        new(null, errorMessage);
+}
+
+public sealed record UpdateTodoTitleApiResult(TodoItem? Todo, string? ErrorMessage)
+{
+    public static UpdateTodoTitleApiResult Success(TodoItem todo) => new(todo, null);
+
+    public static UpdateTodoTitleApiResult Failure(string errorMessage) =>
         new(null, errorMessage);
 }
 
