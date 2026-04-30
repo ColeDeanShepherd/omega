@@ -88,10 +88,11 @@ app.MapPatch("/api/todos/{id:int}/completion", async (
 
 app.MapDelete("/api/todos/{id:int}", async (
     int id,
+    bool? promoteChildren,
     ITodoService todoService,
     CancellationToken cancellationToken) =>
 {
-    var result = await todoService.DeleteTodoAsync(id, cancellationToken);
+    var result = await todoService.DeleteTodoAsync(id, promoteChildren ?? false, cancellationToken);
 
     if (result.Error is not null)
     {

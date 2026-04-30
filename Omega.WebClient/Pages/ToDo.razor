@@ -101,6 +101,32 @@ else
 	<p>No to-do items were returned by the API.</p>
 }
 
+@if (pendingDeleteTodo is not null)
+{
+	<div class="modal show d-block" tabindex="-1" aria-modal="true" role="dialog">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Delete "@pendingDeleteTodo.Title"?</h5>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+					@if (pendingDeleteTodo.Children.Count > 0)
+					{
+						<button type="button" class="btn btn-danger" @onclick="() => ConfirmDeleteAsync(false)">Delete this and children</button>
+						<button type="button" class="btn btn-warning" @onclick="() => ConfirmDeleteAsync(true)">Delete this and move children up</button>
+					}
+					else
+					{
+						<button type="button" class="btn btn-danger" @onclick="() => ConfirmDeleteAsync(false)">Delete</button>
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal-backdrop show" @onclick="CancelDelete"></div>
+}
+
 @code {
 	private IReadOnlyList<TodoItem>? todos;
 	private bool isLoading = true;
@@ -113,6 +139,7 @@ else
 	private HashSet<int> togglingTodoIds = [];
 	private HashSet<int> deletingTodoIds = [];
 	private IReadOnlyList<TodoListEntry> todoEntries = [];
+	private TodoItem? pendingDeleteTodo;
 
 	protected override async Task OnInitializedAsync()
 	{
@@ -166,13 +193,25 @@ else
 		await LoadTodosAsync();
 	}
 
-	private async Task HandleDeleteTodoAsync(TodoItem todo)
+	private void HandleDeleteTodoAsync(TodoItem todo)
 	{
 		deleteTodoErrorMessage = null;
 		toggleTodoErrorMessage = null;
+		pendingDeleteTodo = todo;
+	}
+
+	private void CancelDelete()
+	{
+		pendingDeleteTodo = null;
+	}
+
+	private async Task ConfirmDeleteAsync(bool promoteChildren)
+	{
+		var todo = pendingDeleteTodo!;
+		pendingDeleteTodo = null;
 		deletingTodoIds.Add(todo.Id);
 
-		var result = await ApiClient.DeleteTodoAsync(todo.Id);
+		var result = await ApiClient.DeleteTodoAsync(todo.Id, promoteChildren);
 
 		deletingTodoIds.Remove(todo.Id);
 

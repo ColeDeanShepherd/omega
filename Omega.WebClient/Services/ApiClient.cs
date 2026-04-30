@@ -8,7 +8,7 @@ public interface IApiClient
     Task<TodoApiResult> GetTodosAsync(CancellationToken cancellationToken = default);
     Task<AddTodoApiResult> AddTodoAsync(string title, CancellationToken cancellationToken = default);
     Task<SetTodoCompletionApiResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default);
-    Task<DeleteTodoApiResult> DeleteTodoAsync(int id, CancellationToken cancellationToken = default);
+    Task<DeleteTodoApiResult> DeleteTodoAsync(int id, bool promoteChildren = false, CancellationToken cancellationToken = default);
 }
 
 public sealed class ApiClient(HttpClient httpClient, IConfiguration configuration) : IApiClient
@@ -124,7 +124,7 @@ public sealed class ApiClient(HttpClient httpClient, IConfiguration configuratio
         }
     }
 
-    public async Task<DeleteTodoApiResult> DeleteTodoAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<DeleteTodoApiResult> DeleteTodoAsync(int id, bool promoteChildren = false, CancellationToken cancellationToken = default)
     {
         var apiBaseUrl = configuration["ApiBaseUrl"];
 
@@ -138,7 +138,9 @@ public sealed class ApiClient(HttpClient httpClient, IConfiguration configuratio
             return DeleteTodoApiResult.Failure("The to-do id must be greater than zero.");
         }
 
-        var todoUri = $"{apiBaseUrl.TrimEnd('/')}/api/todos/{id}";
+        var todoUri = promoteChildren
+            ? $"{apiBaseUrl.TrimEnd('/')}/api/todos/{id}?promoteChildren=true"
+            : $"{apiBaseUrl.TrimEnd('/')}/api/todos/{id}";
 
         try
         {

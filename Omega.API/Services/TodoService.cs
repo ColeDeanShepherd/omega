@@ -10,7 +10,7 @@ public interface ITodoService
     Task<TodoServiceResult> GetTodosAsync(CancellationToken cancellationToken = default);
     Task<AddTodoServiceResult> AddTodoAsync(string title, CancellationToken cancellationToken = default);
     Task<SetTodoCompletionServiceResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default);
-    Task<DeleteTodoServiceResult> DeleteTodoAsync(int id, CancellationToken cancellationToken = default);
+    Task<DeleteTodoServiceResult> DeleteTodoAsync(int id, bool promoteChildren = false, CancellationToken cancellationToken = default);
 }
 
 public sealed class TodoService(
@@ -143,7 +143,7 @@ public sealed class TodoService(
         return SetTodoCompletionServiceResult.Success(updatedTodo);
     }
 
-    public async Task<DeleteTodoServiceResult> DeleteTodoAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<DeleteTodoServiceResult> DeleteTodoAsync(int id, bool promoteChildren = false, CancellationToken cancellationToken = default)
     {
         if (id <= 0)
         {
@@ -173,7 +173,15 @@ public sealed class TodoService(
                 readResult.Error.StatusCode);
         }
 
-        if (!TryDeleteTodo(readResult.Todos, id, out var updatedTodos))
+        bool found;
+        IReadOnlyList<TodoItem> updatedTodos;
+
+        if (promoteChildren)
+            found = TryDeleteAndPromoteChildren(readResult.Todos, id, out updatedTodos);
+        else
+            found = TryDeleteTodo(readResult.Todos, id, out updatedTodos);
+
+        if (!found)
         {
             return DeleteTodoServiceResult.Failure(
                 title: "To-do item not found",
@@ -274,6 +282,43 @@ public sealed class TodoService(
             {
                 rewrittenTodos.Add(todo with { Children = updatedChildren });
                 rewrittenTodos.AddRange(todos.Skip(rewrittenTodos.Count));
+                updatedTodos = rewrittenTodos;
+                return true;
+            }
+
+            rewrittenTodos.Add(todo);
+        }
+
+        updatedTodos = todos;
+        return false;
+    }
+
+    private static bool TryDeleteAndPromoteChildren(
+        IReadOnlyList<TodoItem> todos,
+        int id,
+        out IReadOnlyList<TodoItem> updatedTodos)
+    {
+        var rewrittenTodos = new List<TodoItem>(todos.Count);
+
+        for (var i = 0; i < todos.Count; i++)
+        {
+            var todo = todos[i];
+
+            if (todo.Id == id)
+            {
+                rewrittenTodos.AddRange(todo.Children);
+                for (var j = i + 1; j < todos.Count; j++)
+                    rewrittenTodos.Add(todos[j]);
+                updatedTodos = rewrittenTodos;
+                return true;
+            }
+
+            if (todo.Children.Count > 0 &&
+                TryDeleteAndPromoteChildren(todo.Children, id, out var updatedChildren))
+            {
+                rewrittenTodos.Add(todo with { Children = updatedChildren });
+                for (var j = i + 1; j < todos.Count; j++)
+                    rewrittenTodos.Add(todos[j]);
                 updatedTodos = rewrittenTodos;
                 return true;
             }
