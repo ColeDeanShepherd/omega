@@ -64,17 +64,14 @@ else if (todos is { Count: > 0 })
 					}
 				</div>
 
-				@if (entry.Depth == 0)
-				{
-					<button class="btn btn-sm btn-outline-primary"
-							type="button"
-							disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id))"
-							@onclick="() => HandleToggleTodoAsync(todo)">
-						@(togglingTodoIds.Contains(todo.Id)
-							? "Saving..."
-							: (todo.IsComplete ? "Mark Open" : "Mark Done"))
-					</button>
-				}
+				<button class="btn btn-sm btn-outline-primary"
+						type="button"
+						disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id))"
+						@onclick="() => HandleToggleTodoAsync(todo)">
+					@(togglingTodoIds.Contains(todo.Id)
+						? "Saving..."
+						: (todo.IsComplete ? "Mark Open" : "Mark Done"))
+				</button>
 			</li>
 		}
 	</ul>
