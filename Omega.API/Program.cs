@@ -52,7 +52,7 @@ app.MapGet("/api/todos", async (ITodoService todoService, CancellationToken canc
 
 app.MapPost("/api/todos", async (CreateTodoRequest request, ITodoService todoService, CancellationToken cancellationToken) =>
 {
-    var result = await todoService.AddTodoAsync(request.Title, cancellationToken);
+    var result = await todoService.AddTodoAsync(request.Title, request.ParentId, cancellationToken);
 
     if (result.Error is not null)
     {

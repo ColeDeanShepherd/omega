@@ -6,10 +6,19 @@
 <h1>To-Do</h1>
 
 <form class="row g-2 mb-3" @onsubmit="HandleAddTodoAsync" @onsubmit:preventDefault="true">
-	<div class="col-md-9">
-		<input class="form-control" @bind="newTodoTitle" placeholder="Add a new to-do" />
+	<div class="col-md-7">
+		<input class="form-control" @bind="newTodoTitle" placeholder="@GetAddTodoPlaceholder()" />
 	</div>
 	<div class="col-md-3">
+		<select class="form-select"
+				@bind="selectedAddTodoKind"
+				disabled="@isSubmittingTodo"
+				aria-label="Select what to add">
+			<option value="@AddTodoKind.StandardTodo">Add a todo</option>
+			<option value="@AddTodoKind.ChangeOmega">Change Omega</option>
+		</select>
+	</div>
+	<div class="col-md-2">
 		<button class="btn btn-primary" type="submit" disabled="@isSubmittingTodo" aria-label="Add">
 			@if (isSubmittingTodo)
 			{
@@ -136,10 +145,24 @@ else
 	private string? addTodoErrorMessage;
 	private string? toggleTodoErrorMessage;
 	private string? deleteTodoErrorMessage;
+	private AddTodoKind selectedAddTodoKind = AddTodoKind.StandardTodo;
 	private HashSet<int> togglingTodoIds = [];
 	private HashSet<int> deletingTodoIds = [];
 	private IReadOnlyList<TodoListEntry> todoEntries = [];
 	private TodoItem? pendingDeleteTodo;
+	private static readonly IReadOnlyList<string> ChangeOmegaChildTodoTitles =
+	[
+		"plan",
+		"create Git branch",
+		"modify code",
+		"build & test code",
+		"review modifications",
+		"commit & push",
+		"open PR",
+		"assign reviewers",
+		"review loop",
+		"complete PR"
+	];
 
 	protected override async Task OnInitializedAsync()
 	{
@@ -161,7 +184,17 @@ else
 		}
 
 		isSubmittingTodo = true;
-		var addResult = await ApiClient.AddTodoAsync(title);
+		AddTodoApiResult addResult;
+
+		if (selectedAddTodoKind == AddTodoKind.ChangeOmega)
+		{
+			addResult = await AddChangeOmegaTodoAsync(title);
+		}
+		else
+		{
+			addResult = await ApiClient.AddTodoAsync(title);
+		}
+
 		isSubmittingTodo = false;
 
 		if (!string.IsNullOrWhiteSpace(addResult.ErrorMessage))
@@ -173,6 +206,34 @@ else
 		newTodoTitle = string.Empty;
 		await LoadTodosAsync();
 	}
+
+	private async Task<AddTodoApiResult> AddChangeOmegaTodoAsync(string parentTitle)
+	{
+		var parentResult = await ApiClient.AddTodoAsync(parentTitle);
+
+		if (!string.IsNullOrWhiteSpace(parentResult.ErrorMessage) || parentResult.Todo is null)
+		{
+			return AddTodoApiResult.Failure(parentResult.ErrorMessage ?? "Failed to create Change Omega to-do.");
+		}
+
+		foreach (var childTitle in ChangeOmegaChildTodoTitles)
+		{
+			var childResult = await ApiClient.AddTodoAsync(childTitle, parentResult.Todo.Id);
+
+			if (!string.IsNullOrWhiteSpace(childResult.ErrorMessage))
+			{
+				return AddTodoApiResult.Failure($"Created parent to-do but failed to add child '{childTitle}': {childResult.ErrorMessage}");
+			}
+		}
+
+		return AddTodoApiResult.Success(parentResult.Todo);
+	}
+
+	private string GetAddTodoPlaceholder() => selectedAddTodoKind switch
+	{
+		AddTodoKind.ChangeOmega => "Describe the change to make in Omega",
+		_ => "Add a new to-do"
+	};
 
 	private async Task HandleToggleTodoAsync(TodoItem todo)
 	{
@@ -255,6 +316,12 @@ else
 	}
 
 	private static string GetTodoIndentStyle(int depth) => $"padding-left: {1 + (depth * 2)}rem";
+
+	private enum AddTodoKind
+	{
+		StandardTodo,
+		ChangeOmega
+	}
 
 	private sealed record TodoListEntry(TodoItem Todo, int Depth);
 }

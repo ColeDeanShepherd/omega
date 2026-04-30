@@ -8,7 +8,7 @@ namespace Omega.API.Services;
 public interface ITodoService
 {
     Task<TodoServiceResult> GetTodosAsync(CancellationToken cancellationToken = default);
-    Task<AddTodoServiceResult> AddTodoAsync(string title, CancellationToken cancellationToken = default);
+    Task<AddTodoServiceResult> AddTodoAsync(string title, int? parentId = null, CancellationToken cancellationToken = default);
     Task<SetTodoCompletionServiceResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default);
     Task<DeleteTodoServiceResult> DeleteTodoAsync(int id, bool promoteChildren = false, CancellationToken cancellationToken = default);
 }
@@ -42,7 +42,7 @@ public sealed class TodoService(
         return TodoServiceResult.Success(readResult.Todos);
     }
 
-    public async Task<AddTodoServiceResult> AddTodoAsync(string title, CancellationToken cancellationToken = default)
+    public async Task<AddTodoServiceResult> AddTodoAsync(string title, int? parentId = null, CancellationToken cancellationToken = default)
     {
         var trimmedTitle = title?.Trim();
 
@@ -51,6 +51,14 @@ public sealed class TodoService(
             return AddTodoServiceResult.Failure(
                 title: "Todo title is required",
                 detail: "Provide a non-empty title when creating a to-do item.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (parentId is <= 0)
+        {
+            return AddTodoServiceResult.Failure(
+                title: "Invalid parent to-do id",
+                detail: "The parent to-do id must be greater than zero when provided.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -77,7 +85,19 @@ public sealed class TodoService(
         var highestTodoId = GetHighestTodoId(readResult.Todos);
         var nextId = highestTodoId == 0 ? 1 : highestTodoId + 1;
         var newTodo = new TodoItem(nextId, trimmedTitle, false);
-        var updatedTodos = readResult.Todos.Append(newTodo).ToArray();
+        IReadOnlyList<TodoItem> updatedTodos;
+
+        if (parentId is null)
+        {
+            updatedTodos = readResult.Todos.Append(newTodo).ToArray();
+        }
+        else if (!TryAddChildTodo(readResult.Todos, parentId.Value, newTodo, out updatedTodos))
+        {
+            return AddTodoServiceResult.Failure(
+                title: "Parent to-do item not found",
+                detail: "No parent to-do item exists for the requested id.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
 
         var writeResult = await WriteTodosAsync(todoFilePathResult.FilePath!, updatedTodos, cancellationToken);
 
@@ -90,6 +110,40 @@ public sealed class TodoService(
         }
 
         return AddTodoServiceResult.Success(newTodo);
+    }
+
+    private static bool TryAddChildTodo(
+        IReadOnlyList<TodoItem> todos,
+        int parentId,
+        TodoItem child,
+        out IReadOnlyList<TodoItem> updatedTodos)
+    {
+        var rewrittenTodos = new List<TodoItem>(todos.Count);
+
+        foreach (var todo in todos)
+        {
+            if (todo.Id == parentId)
+            {
+                var appendedChildren = todo.Children.Append(child).ToArray();
+                rewrittenTodos.Add(todo with { Children = appendedChildren });
+                rewrittenTodos.AddRange(todos.Skip(rewrittenTodos.Count));
+                updatedTodos = rewrittenTodos;
+                return true;
+            }
+
+            if (todo.Children.Count > 0 && TryAddChildTodo(todo.Children, parentId, child, out var updatedChildren))
+            {
+                rewrittenTodos.Add(todo with { Children = updatedChildren });
+                rewrittenTodos.AddRange(todos.Skip(rewrittenTodos.Count));
+                updatedTodos = rewrittenTodos;
+                return true;
+            }
+
+            rewrittenTodos.Add(todo);
+        }
+
+        updatedTodos = todos;
+        return false;
     }
 
     public async Task<SetTodoCompletionServiceResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default)

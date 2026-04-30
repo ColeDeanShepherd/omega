@@ -6,7 +6,7 @@ namespace Omega.WebClient.Services;
 public interface IApiClient
 {
     Task<TodoApiResult> GetTodosAsync(CancellationToken cancellationToken = default);
-    Task<AddTodoApiResult> AddTodoAsync(string title, CancellationToken cancellationToken = default);
+    Task<AddTodoApiResult> AddTodoAsync(string title, int? parentId = null, CancellationToken cancellationToken = default);
     Task<SetTodoCompletionApiResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default);
     Task<DeleteTodoApiResult> DeleteTodoAsync(int id, bool promoteChildren = false, CancellationToken cancellationToken = default);
 }
@@ -35,7 +35,7 @@ public sealed class ApiClient(HttpClient httpClient, IConfiguration configuratio
         }
     }
 
-    public async Task<AddTodoApiResult> AddTodoAsync(string title, CancellationToken cancellationToken = default)
+    public async Task<AddTodoApiResult> AddTodoAsync(string title, int? parentId = null, CancellationToken cancellationToken = default)
     {
         var apiBaseUrl = configuration["ApiBaseUrl"];
 
@@ -53,9 +53,14 @@ public sealed class ApiClient(HttpClient httpClient, IConfiguration configuratio
 
         var todosUri = $"{apiBaseUrl.TrimEnd('/')}/api/todos";
 
+        if (parentId is <= 0)
+        {
+            return AddTodoApiResult.Failure("The parent to-do id must be greater than zero when provided.");
+        }
+
         try
         {
-            var response = await httpClient.PostAsJsonAsync(todosUri, new CreateTodoRequest(trimmedTitle), cancellationToken);
+            var response = await httpClient.PostAsJsonAsync(todosUri, new CreateTodoRequest(trimmedTitle, parentId), cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
