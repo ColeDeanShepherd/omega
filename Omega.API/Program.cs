@@ -86,4 +86,23 @@ app.MapPatch("/api/todos/{id:int}/completion", async (
 })
 .WithName("SetTodoCompletion");
 
+app.MapDelete("/api/todos/{id:int}", async (
+    int id,
+    ITodoService todoService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await todoService.DeleteTodoAsync(id, cancellationToken);
+
+    if (result.Error is not null)
+    {
+        return Results.Problem(
+            title: result.Error.Title,
+            detail: result.Error.Detail,
+            statusCode: result.Error.StatusCode);
+    }
+
+    return Results.NoContent();
+})
+.WithName("DeleteTodo");
+
 app.Run();

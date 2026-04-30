@@ -10,6 +10,7 @@ public interface ITodoService
     Task<TodoServiceResult> GetTodosAsync(CancellationToken cancellationToken = default);
     Task<AddTodoServiceResult> AddTodoAsync(string title, CancellationToken cancellationToken = default);
     Task<SetTodoCompletionServiceResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default);
+    Task<DeleteTodoServiceResult> DeleteTodoAsync(int id, CancellationToken cancellationToken = default);
 }
 
 public sealed class TodoService(
@@ -142,6 +143,57 @@ public sealed class TodoService(
         return SetTodoCompletionServiceResult.Success(updatedTodo);
     }
 
+    public async Task<DeleteTodoServiceResult> DeleteTodoAsync(int id, CancellationToken cancellationToken = default)
+    {
+        if (id <= 0)
+        {
+            return DeleteTodoServiceResult.Failure(
+                title: "Invalid to-do id",
+                detail: "The to-do id must be greater than zero.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var todoFilePathResult = GetValidatedTodoFilePath();
+
+        if (todoFilePathResult.Error is not null)
+        {
+            return DeleteTodoServiceResult.Failure(
+                todoFilePathResult.Error.Title,
+                todoFilePathResult.Error.Detail,
+                todoFilePathResult.Error.StatusCode);
+        }
+
+        var readResult = await ReadTodosAsync(todoFilePathResult.FilePath!, cancellationToken);
+
+        if (readResult.Error is not null)
+        {
+            return DeleteTodoServiceResult.Failure(
+                readResult.Error.Title,
+                readResult.Error.Detail,
+                readResult.Error.StatusCode);
+        }
+
+        if (!TryDeleteTodo(readResult.Todos, id, out var updatedTodos))
+        {
+            return DeleteTodoServiceResult.Failure(
+                title: "To-do item not found",
+                detail: "No to-do item exists for the requested id.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        var writeResult = await WriteTodosAsync(todoFilePathResult.FilePath!, updatedTodos, cancellationToken);
+
+        if (writeResult is not null)
+        {
+            return DeleteTodoServiceResult.Failure(
+                writeResult.Title,
+                writeResult.Detail,
+                writeResult.StatusCode);
+        }
+
+        return DeleteTodoServiceResult.Success();
+    }
+
     private static int GetHighestTodoId(IReadOnlyList<TodoItem> todos)
     {
         var highestId = 0;
@@ -199,6 +251,37 @@ public sealed class TodoService(
 
         updatedTodos = todos;
         updatedTodo = default!;
+        return false;
+    }
+
+    private static bool TryDeleteTodo(
+        IReadOnlyList<TodoItem> todos,
+        int id,
+        out IReadOnlyList<TodoItem> updatedTodos)
+    {
+        var rewrittenTodos = new List<TodoItem>(todos.Count);
+
+        foreach (var todo in todos)
+        {
+            if (todo.Id == id)
+            {
+                rewrittenTodos.AddRange(todos.Skip(rewrittenTodos.Count + 1));
+                updatedTodos = rewrittenTodos;
+                return true;
+            }
+
+            if (todo.Children.Count > 0 && TryDeleteTodo(todo.Children, id, out var updatedChildren))
+            {
+                rewrittenTodos.Add(todo with { Children = updatedChildren });
+                rewrittenTodos.AddRange(todos.Skip(rewrittenTodos.Count));
+                updatedTodos = rewrittenTodos;
+                return true;
+            }
+
+            rewrittenTodos.Add(todo);
+        }
+
+        updatedTodos = todos;
         return false;
     }
 
@@ -336,5 +419,13 @@ public sealed record SetTodoCompletionServiceResult(TodoItem? Todo, TodoServiceE
     public static SetTodoCompletionServiceResult Failure(string title, string detail, int statusCode) =>
         new(null, new TodoServiceError(title, detail, statusCode));
 }
+
+    public sealed record DeleteTodoServiceResult(TodoServiceError? Error)
+    {
+        public static DeleteTodoServiceResult Success() => new(Error: null);
+
+        public static DeleteTodoServiceResult Failure(string title, string detail, int statusCode) =>
+        new(new TodoServiceError(title, detail, statusCode));
+    }
 
 public sealed record TodoServiceError(string Title, string Detail, int StatusCode);

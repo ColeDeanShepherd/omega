@@ -30,6 +30,13 @@
 	</div>
 }
 
+@if (!string.IsNullOrWhiteSpace(deleteTodoErrorMessage))
+{
+	<div class="alert alert-warning" role="alert">
+		@deleteTodoErrorMessage
+	</div>
+}
+
 @if (isLoading)
 {
 	<p><em>Loading...</em></p>
@@ -47,31 +54,33 @@ else if (todos is { Count: > 0 })
 		{
 			var todo = entry.Todo;
 
-			<li class="list-group-item d-flex justify-content-between align-items-center"
+			<li class="list-group-item"
 				style="@GetTodoIndentStyle(entry.Depth)">
-				<div class="d-flex align-items-center gap-2 flex-wrap">
-					@if (entry.Depth > 0)
-					{
-						<span class="text-muted" aria-hidden="true">&#8627;</span>
-					}
-					<span>@todo.Title</span>
-					<span class="badge @(todo.IsComplete ? "text-bg-success" : "text-bg-secondary")">
-						@(todo.IsComplete ? "Done" : "Open")
-					</span>
-					@if (entry.Depth > 0)
-					{
-						<span class="badge text-bg-light">Child</span>
-					}
-				</div>
+				<div class="d-flex justify-content-between align-items-center gap-3">
+					<div class="d-flex align-items-center gap-2 flex-wrap">
+						<input class="form-check-input mt-0"
+							type="checkbox"
+							checked="@todo.IsComplete"
+							disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id))"
+							@onchange="() => HandleToggleTodoAsync(todo)" />
+						@if (entry.Depth > 0)
+						{
+							<span class="text-muted" aria-hidden="true">&#8627;</span>
+						}
+						<span>@todo.Title</span>
+						@if (entry.Depth > 0)
+						{
+							<span class="badge text-bg-light">Child</span>
+						}
+					</div>
 
-				<button class="btn btn-sm btn-outline-primary"
-						type="button"
-						disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id))"
-						@onclick="() => HandleToggleTodoAsync(todo)">
-					@(togglingTodoIds.Contains(todo.Id)
-						? "Saving..."
-						: (todo.IsComplete ? "Mark Not Done" : "Mark Done"))
-				</button>
+					<button class="btn btn-sm btn-outline-danger"
+							type="button"
+							disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id))"
+							@onclick="() => HandleDeleteTodoAsync(todo)">
+						@(deletingTodoIds.Contains(todo.Id) ? "Deleting..." : "Delete")
+					</button>
+				</div>
 			</li>
 		}
 	</ul>
@@ -89,7 +98,9 @@ else
 	private bool isSubmittingTodo;
 	private string? addTodoErrorMessage;
 	private string? toggleTodoErrorMessage;
+	private string? deleteTodoErrorMessage;
 	private HashSet<int> togglingTodoIds = [];
+	private HashSet<int> deletingTodoIds = [];
 	private IReadOnlyList<TodoListEntry> todoEntries = [];
 
 	protected override async Task OnInitializedAsync()
@@ -101,6 +112,7 @@ else
 	{
 		addTodoErrorMessage = null;
 		toggleTodoErrorMessage = null;
+		deleteTodoErrorMessage = null;
 
 		var title = newTodoTitle.Trim();
 
@@ -127,6 +139,7 @@ else
 	private async Task HandleToggleTodoAsync(TodoItem todo)
 	{
 		toggleTodoErrorMessage = null;
+		deleteTodoErrorMessage = null;
 		togglingTodoIds.Add(todo.Id);
 
 		var result = await ApiClient.SetTodoCompletionAsync(todo.Id, !todo.IsComplete);
@@ -136,6 +149,25 @@ else
 		if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
 		{
 			toggleTodoErrorMessage = result.ErrorMessage;
+			return;
+		}
+
+		await LoadTodosAsync();
+	}
+
+	private async Task HandleDeleteTodoAsync(TodoItem todo)
+	{
+		deleteTodoErrorMessage = null;
+		toggleTodoErrorMessage = null;
+		deletingTodoIds.Add(todo.Id);
+
+		var result = await ApiClient.DeleteTodoAsync(todo.Id);
+
+		deletingTodoIds.Remove(todo.Id);
+
+		if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+		{
+			deleteTodoErrorMessage = result.ErrorMessage;
 			return;
 		}
 

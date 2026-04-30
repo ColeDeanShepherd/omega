@@ -8,6 +8,7 @@ public interface IApiClient
     Task<TodoApiResult> GetTodosAsync(CancellationToken cancellationToken = default);
     Task<AddTodoApiResult> AddTodoAsync(string title, CancellationToken cancellationToken = default);
     Task<SetTodoCompletionApiResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default);
+    Task<DeleteTodoApiResult> DeleteTodoAsync(int id, CancellationToken cancellationToken = default);
 }
 
 public sealed class ApiClient(HttpClient httpClient, IConfiguration configuration) : IApiClient
@@ -122,6 +123,44 @@ public sealed class ApiClient(HttpClient httpClient, IConfiguration configuratio
             return SetTodoCompletionApiResult.Failure($"Failed to update to-do status: {ex.Message}");
         }
     }
+
+    public async Task<DeleteTodoApiResult> DeleteTodoAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var apiBaseUrl = configuration["ApiBaseUrl"];
+
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            return DeleteTodoApiResult.Failure("Client configuration is missing ApiBaseUrl.");
+        }
+
+        if (id <= 0)
+        {
+            return DeleteTodoApiResult.Failure("The to-do id must be greater than zero.");
+        }
+
+        var todoUri = $"{apiBaseUrl.TrimEnd('/')}/api/todos/{id}";
+
+        try
+        {
+            var response = await httpClient.DeleteAsync(todoUri, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                var errorMessage = string.IsNullOrWhiteSpace(errorContent)
+                    ? $"Failed to delete to-do item. HTTP {(int)response.StatusCode}."
+                    : $"Failed to delete to-do item. {errorContent}";
+
+                return DeleteTodoApiResult.Failure(errorMessage);
+            }
+
+            return DeleteTodoApiResult.Success();
+        }
+        catch (Exception ex)
+        {
+            return DeleteTodoApiResult.Failure($"Failed to delete to-do item: {ex.Message}");
+        }
+    }
 }
 
 public sealed record TodoApiResult(IReadOnlyList<TodoItem> Todos, string? ErrorMessage)
@@ -146,4 +185,12 @@ public sealed record SetTodoCompletionApiResult(TodoItem? Todo, string? ErrorMes
 
     public static SetTodoCompletionApiResult Failure(string errorMessage) =>
         new(null, errorMessage);
+}
+
+public sealed record DeleteTodoApiResult(string? ErrorMessage)
+{
+    public static DeleteTodoApiResult Success() => new(ErrorMessage: null);
+
+    public static DeleteTodoApiResult Failure(string errorMessage) =>
+        new(errorMessage);
 }
