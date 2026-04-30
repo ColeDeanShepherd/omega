@@ -10,8 +10,15 @@
 		<input class="form-control" @bind="newTodoTitle" placeholder="Add a new to-do" />
 	</div>
 	<div class="col-md-3">
-		<button class="btn btn-primary w-100" type="submit" disabled="@isSubmittingTodo">
-			@(isSubmittingTodo ? "Adding..." : "Add")
+		<button class="btn btn-primary" type="submit" disabled="@isSubmittingTodo" aria-label="Add">
+			@if (isSubmittingTodo)
+			{
+				<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+			}
+			else
+			{
+				<i class="bi bi-plus-lg" aria-hidden="true"></i>
+			}
 		</button>
 	</div>
 </form>
@@ -73,8 +80,16 @@ else if (todos is { Count: > 0 })
 					<button class="btn btn-sm btn-outline-danger"
 							type="button"
 							disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id))"
+							aria-label="Delete"
 							@onclick="() => HandleDeleteTodoAsync(todo)">
-						@(deletingTodoIds.Contains(todo.Id) ? "Deleting..." : "Delete")
+						@if (deletingTodoIds.Contains(todo.Id))
+						{
+							<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+						}
+						else
+						{
+							<i class="bi bi-trash" aria-hidden="true"></i>
+						}
 					</button>
 				</div>
 			</li>
