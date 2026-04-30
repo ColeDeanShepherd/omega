@@ -73,7 +73,8 @@ public sealed class TodoService(
                 readResult.Error.StatusCode);
         }
 
-        var nextId = readResult.Todos.Count == 0 ? 1 : readResult.Todos.Max(todo => todo.Id) + 1;
+        var highestTodoId = GetHighestTodoId(readResult.Todos);
+        var nextId = highestTodoId == 0 ? 1 : highestTodoId + 1;
         var newTodo = new TodoItem(nextId, trimmedTitle, false);
         var updatedTodos = readResult.Todos.Append(newTodo).ToArray();
 
@@ -120,20 +121,13 @@ public sealed class TodoService(
                 readResult.Error.StatusCode);
         }
 
-        var todoToUpdate = readResult.Todos.FirstOrDefault(todo => todo.Id == id);
-
-        if (todoToUpdate is null)
+        if (!TrySetTodoCompletion(readResult.Todos, id, isComplete, out var updatedTodos, out var updatedTodo))
         {
             return SetTodoCompletionServiceResult.Failure(
                 title: "To-do item not found",
                 detail: "No to-do item exists for the requested id.",
                 statusCode: StatusCodes.Status404NotFound);
         }
-
-        var updatedTodo = todoToUpdate with { IsComplete = isComplete };
-        var updatedTodos = readResult.Todos
-            .Select(todo => todo.Id == id ? updatedTodo : todo)
-            .ToArray();
 
         var writeResult = await WriteTodosAsync(todoFilePathResult.FilePath!, updatedTodos, cancellationToken);
 
@@ -146,6 +140,66 @@ public sealed class TodoService(
         }
 
         return SetTodoCompletionServiceResult.Success(updatedTodo);
+    }
+
+    private static int GetHighestTodoId(IReadOnlyList<TodoItem> todos)
+    {
+        var highestId = 0;
+        var stack = new Stack<TodoItem>(todos);
+
+        while (stack.Count > 0)
+        {
+            var todo = stack.Pop();
+
+            if (todo.Id > highestId)
+            {
+                highestId = todo.Id;
+            }
+
+            foreach (var child in todo.Children)
+            {
+                stack.Push(child);
+            }
+        }
+
+        return highestId;
+    }
+
+    private static bool TrySetTodoCompletion(
+        IReadOnlyList<TodoItem> todos,
+        int id,
+        bool isComplete,
+        out IReadOnlyList<TodoItem> updatedTodos,
+        out TodoItem updatedTodo)
+    {
+        var rewrittenTodos = new List<TodoItem>(todos.Count);
+
+        foreach (var todo in todos)
+        {
+            if (todo.Id == id)
+            {
+                updatedTodo = todo with { IsComplete = isComplete };
+                rewrittenTodos.Add(updatedTodo);
+                rewrittenTodos.AddRange(todos.Skip(rewrittenTodos.Count));
+                updatedTodos = rewrittenTodos;
+                return true;
+            }
+
+            if (todo.Children.Count > 0 &&
+                TrySetTodoCompletion(todo.Children, id, isComplete, out var updatedChildren, out updatedTodo))
+            {
+                rewrittenTodos.Add(todo with { Children = updatedChildren });
+                rewrittenTodos.AddRange(todos.Skip(rewrittenTodos.Count));
+                updatedTodos = rewrittenTodos;
+                return true;
+            }
+
+            rewrittenTodos.Add(todo);
+        }
+
+        updatedTodos = todos;
+        updatedTodo = default!;
+        return false;
     }
 
     private (string? FilePath, TodoServiceError? Error) GetValidatedTodoFilePath()
