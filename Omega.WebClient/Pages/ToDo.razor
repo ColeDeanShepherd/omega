@@ -67,6 +67,20 @@
 	</div>
 }
 
+@if (!string.IsNullOrWhiteSpace(delegateTodoErrorMessage))
+{
+	<div class="alert alert-warning" role="alert">
+		@delegateTodoErrorMessage
+	</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(delegateTodoSuccessMessage))
+{
+	<div class="alert alert-success" role="alert">
+		@delegateTodoSuccessMessage
+	</div>
+}
+
 @if (isLoading)
 {
 	<p><em>Loading...</em></p>
@@ -111,6 +125,21 @@ else if (todos is { Count: > 0 })
 						</div>
 
 					<div class="d-flex gap-2">
+						<button class="btn btn-sm btn-outline-info"
+								type="button"
+								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || delegatingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id)"
+								aria-label="Delegate to AI"
+								@onclick="() => HandleDelegateTodoAsync(todo)">
+							@if (delegatingTodoIds.Contains(todo.Id))
+							{
+								<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+							}
+							else
+							{
+								<i class="bi bi-robot" aria-hidden="true"></i>
+							}
+						</button>
+
 						<button class="btn btn-sm btn-outline-secondary"
 								type="button"
 								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id || !canMoveUp)"
@@ -216,10 +245,13 @@ else
 	private string? deleteTodoErrorMessage;
 	private string? updateTodoErrorMessage;
 	private string? moveTodoErrorMessage;
+	private string? delegateTodoErrorMessage;
+	private string? delegateTodoSuccessMessage;
 	private AddTodoKind selectedAddTodoKind = AddTodoKind.StandardTodo;
 	private HashSet<int> togglingTodoIds = [];
 	private HashSet<int> deletingTodoIds = [];
 	private HashSet<int> movingTodoIds = [];
+	private HashSet<int> delegatingTodoIds = [];
 	private IReadOnlyList<TodoListEntry> todoEntries = [];
 	private TodoItem? pendingDeleteTodo;
 	private int? editingTodoId;
@@ -249,6 +281,8 @@ else
 		toggleTodoErrorMessage = null;
 		deleteTodoErrorMessage = null;
 		moveTodoErrorMessage = null;
+		delegateTodoErrorMessage = null;
+		delegateTodoSuccessMessage = null;
 
 		var title = newTodoTitle.Trim();
 
@@ -315,6 +349,8 @@ else
 		toggleTodoErrorMessage = null;
 		deleteTodoErrorMessage = null;
 		moveTodoErrorMessage = null;
+		delegateTodoErrorMessage = null;
+		delegateTodoSuccessMessage = null;
 		togglingTodoIds.Add(todo.Id);
 
 		var result = await ApiClient.SetTodoCompletionAsync(todo.Id, !todo.IsComplete);
@@ -335,6 +371,8 @@ else
 		deleteTodoErrorMessage = null;
 		toggleTodoErrorMessage = null;
 		moveTodoErrorMessage = null;
+		delegateTodoErrorMessage = null;
+		delegateTodoSuccessMessage = null;
 		pendingDeleteTodo = todo;
 	}
 
@@ -343,6 +381,8 @@ else
 		moveTodoErrorMessage = null;
 		deleteTodoErrorMessage = null;
 		toggleTodoErrorMessage = null;
+		delegateTodoErrorMessage = null;
+		delegateTodoSuccessMessage = null;
 		movingTodoIds.Add(todo.Id);
 
 		var result = await ApiClient.MoveTodoAsync(todo.Id, moveUp);
@@ -356,6 +396,35 @@ else
 		}
 
 		await LoadTodosAsync();
+	}
+
+	private async Task HandleDelegateTodoAsync(TodoItem todo)
+	{
+		delegateTodoErrorMessage = null;
+		delegateTodoSuccessMessage = null;
+		moveTodoErrorMessage = null;
+		deleteTodoErrorMessage = null;
+		toggleTodoErrorMessage = null;
+		delegatingTodoIds.Add(todo.Id);
+
+		var result = await ApiClient.DelegateTodoAsync(todo.Id);
+
+		delegatingTodoIds.Remove(todo.Id);
+
+		if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+		{
+			delegateTodoErrorMessage = result.ErrorMessage;
+			return;
+		}
+
+		if (result.Response is not null)
+		{
+			delegateTodoSuccessMessage = $"Started AI agent process #{result.Response.ProcessId} for '{todo.Title}'.";
+		}
+		else
+		{
+			delegateTodoSuccessMessage = $"Delegated '{todo.Title}' to AI agent.";
+		}
 	}
 
 	private void CancelDelete()

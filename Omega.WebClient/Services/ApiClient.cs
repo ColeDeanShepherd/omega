@@ -10,6 +10,7 @@ public interface IApiClient
     Task<SetTodoCompletionApiResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default);
     Task<UpdateTodoTitleApiResult> UpdateTodoTitleAsync(int id, string title, CancellationToken cancellationToken = default);
     Task<MoveTodoApiResult> MoveTodoAsync(int id, bool moveUp, CancellationToken cancellationToken = default);
+    Task<DelegateTodoApiResult> DelegateTodoAsync(int id, CancellationToken cancellationToken = default);
     Task<DeleteTodoApiResult> DeleteTodoAsync(int id, bool promoteChildren = false, CancellationToken cancellationToken = default);
 }
 
@@ -228,6 +229,48 @@ public sealed class ApiClient(HttpClient httpClient, IConfiguration configuratio
         }
     }
 
+    public async Task<DelegateTodoApiResult> DelegateTodoAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var apiBaseUrl = configuration["ApiBaseUrl"];
+
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            return DelegateTodoApiResult.Failure("Client configuration is missing ApiBaseUrl.");
+        }
+
+        if (id <= 0)
+        {
+            return DelegateTodoApiResult.Failure("The to-do id must be greater than zero.");
+        }
+
+        var delegateUri = $"{apiBaseUrl.TrimEnd('/')}/api/todos/{id}/delegate";
+
+        try
+        {
+            var response = await httpClient.PostAsync(delegateUri, content: null, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                var errorMessage = string.IsNullOrWhiteSpace(errorContent)
+                    ? $"Failed to delegate to-do item. HTTP {(int)response.StatusCode}."
+                    : $"Failed to delegate to-do item. {errorContent}";
+
+                return DelegateTodoApiResult.Failure(errorMessage);
+            }
+
+            var delegateResponse = await response.Content.ReadFromJsonAsync<DelegateTodoResponse>(cancellationToken: cancellationToken);
+
+            return delegateResponse is null
+                ? DelegateTodoApiResult.Failure("The API did not return delegation details.")
+                : DelegateTodoApiResult.Success(delegateResponse);
+        }
+        catch (Exception ex)
+        {
+            return DelegateTodoApiResult.Failure($"Failed to delegate to-do item: {ex.Message}");
+        }
+    }
+
     public async Task<DeleteTodoApiResult> DeleteTodoAsync(int id, bool promoteChildren = false, CancellationToken cancellationToken = default)
     {
         var apiBaseUrl = configuration["ApiBaseUrl"];
@@ -306,6 +349,14 @@ public sealed record MoveTodoApiResult(TodoItem? Todo, string? ErrorMessage)
     public static MoveTodoApiResult Success(TodoItem todo) => new(todo, null);
 
     public static MoveTodoApiResult Failure(string errorMessage) =>
+        new(null, errorMessage);
+}
+
+public sealed record DelegateTodoApiResult(DelegateTodoResponse? Response, string? ErrorMessage)
+{
+    public static DelegateTodoApiResult Success(DelegateTodoResponse response) => new(response, null);
+
+    public static DelegateTodoApiResult Failure(string errorMessage) =>
         new(null, errorMessage);
 }
 

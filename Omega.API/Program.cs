@@ -6,7 +6,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<ITodoService, TodoService>();
+builder.Services.AddScoped<IAgentDelegationService, AgentDelegationService>();
 builder.Services.Configure<DataStoreSettings>(builder.Configuration.GetSection(DataStoreSettings.SectionName));
+builder.Services.Configure<AgentDelegationSettings>(builder.Configuration.GetSection(AgentDelegationSettings.SectionName));
 
 var webClientOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
@@ -145,5 +147,24 @@ app.MapDelete("/api/todos/{id:int}", async (
     return Results.NoContent();
 })
 .WithName("DeleteTodo");
+
+app.MapPost("/api/todos/{id:int}/delegate", async (
+    int id,
+    IAgentDelegationService agentDelegationService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await agentDelegationService.DelegateTodoAsync(id, cancellationToken);
+
+    if (result.Error is not null)
+    {
+        return Results.Problem(
+            title: result.Error.Title,
+            detail: result.Error.Detail,
+            statusCode: result.Error.StatusCode);
+    }
+
+    return Results.Ok(new DelegateTodoResponse(result.ProcessId!.Value, result.Message!));
+})
+.WithName("DelegateTodo");
 
 app.Run();
