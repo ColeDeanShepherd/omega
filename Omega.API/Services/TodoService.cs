@@ -86,7 +86,7 @@ public sealed class TodoService(
 
         var highestTodoId = GetHighestTodoId(readResult.Todos);
         var nextId = highestTodoId == 0 ? 1 : highestTodoId + 1;
-        var newTodo = new TodoItem(nextId, trimmedTitle, false);
+        var newTodo = new TodoItem(nextId, trimmedTitle, false, null);
         IReadOnlyList<TodoItem> updatedTodos;
 
         if (parentId is null)
@@ -414,7 +414,15 @@ public sealed class TodoService(
         {
             if (todo.Id == id)
             {
-                updatedTodo = todo with { IsComplete = isComplete };
+                DateTimeOffset? completedAt = isComplete
+                    ? todo.CompletedAt ?? DateTimeOffset.UtcNow
+                    : null;
+
+                updatedTodo = todo with
+                {
+                    IsComplete = isComplete,
+                    CompletedAt = completedAt
+                };
                 rewrittenTodos.Add(updatedTodo);
                 rewrittenTodos.AddRange(todos.Skip(rewrittenTodos.Count));
                 updatedTodos = rewrittenTodos;
