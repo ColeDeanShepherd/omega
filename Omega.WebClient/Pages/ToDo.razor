@@ -99,6 +99,7 @@ else if (todos is { Count: > 0 })
 			var todo = entry.Todo;
 			var canMoveUp = entry.SiblingIndex > 0;
 			var canMoveDown = entry.SiblingIndex < entry.SiblingCount - 1;
+			var isAddingChildForTodo = addingChildParentId == todo.Id;
 
 			<li class="list-group-item"
 				style="@GetTodoIndentStyle(entry.Depth)">
@@ -125,6 +126,14 @@ else if (todos is { Count: > 0 })
 						</div>
 
 					<div class="d-flex gap-2">
+						<button class="btn btn-sm btn-outline-primary"
+								type="button"
+								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || delegatingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id)"
+								aria-label="Add child"
+								@onclick="() => HandleStartAddChild(todo)">
+							<i class="bi bi-plus-lg" aria-hidden="true"></i>
+						</button>
+
 						<button class="btn btn-sm btn-outline-info"
 								type="button"
 								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || delegatingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id)"
@@ -199,6 +208,33 @@ else if (todos is { Count: > 0 })
 						</button>
 					</div>
 				</div>
+
+				@if (isAddingChildForTodo)
+				{
+					<div class="d-flex gap-2 mt-2">
+						<input class="form-control form-control-sm"
+							type="text"
+							value="@addingChildTitle"
+							disabled="@isSubmittingTodo"
+							placeholder="Add a child to-do"
+							@onchange="(ChangeEventArgs e) => addingChildTitle = e?.Value?.ToString() ?? string.Empty"
+							@onkeydown="(KeyboardEventArgs e) => HandleAddChildKeydownAsync(e, todo)" />
+						<button class="btn btn-sm btn-success"
+							type="button"
+							disabled="@isSubmittingTodo"
+							aria-label="Save child"
+							@onclick="() => HandleSaveAddChildAsync(todo)">
+							<i class="bi bi-check" aria-hidden="true"></i>
+						</button>
+						<button class="btn btn-sm btn-secondary"
+							type="button"
+							disabled="@isSubmittingTodo"
+							aria-label="Cancel adding child"
+							@onclick="CancelAddChild">
+							<i class="bi bi-x" aria-hidden="true"></i>
+						</button>
+					</div>
+				}
 			</li>
 		}
 	</ul>
@@ -256,6 +292,8 @@ else
 	private TodoItem? pendingDeleteTodo;
 	private int? editingTodoId;
 	private string editingTodoTitle = string.Empty;
+	private int? addingChildParentId;
+	private string addingChildTitle = string.Empty;
 	private static readonly IReadOnlyList<string> ChangeOmegaChildTodoTitles =
 	[
 		"plan",
@@ -366,6 +404,68 @@ else
 		await LoadTodosAsync();
 	}
 
+	private void HandleStartAddChild(TodoItem todo)
+	{
+		addTodoErrorMessage = null;
+		addingChildParentId = todo.Id;
+		addingChildTitle = string.Empty;
+	}
+
+	private void CancelAddChild()
+	{
+		addingChildParentId = null;
+		addingChildTitle = string.Empty;
+	}
+
+	private async Task HandleSaveAddChildAsync(TodoItem parentTodo)
+	{
+		addTodoErrorMessage = null;
+		toggleTodoErrorMessage = null;
+		deleteTodoErrorMessage = null;
+		moveTodoErrorMessage = null;
+		delegateTodoErrorMessage = null;
+		delegateTodoSuccessMessage = null;
+
+		if (addingChildParentId != parentTodo.Id)
+		{
+			addTodoErrorMessage = "Select a parent to-do before adding a child.";
+			return;
+		}
+
+		var title = addingChildTitle.Trim();
+
+		if (string.IsNullOrWhiteSpace(title))
+		{
+			addTodoErrorMessage = "Enter a title before adding a child to-do item.";
+			return;
+		}
+
+		isSubmittingTodo = true;
+		var result = await ApiClient.AddTodoAsync(title, parentTodo.Id);
+		isSubmittingTodo = false;
+
+		if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+		{
+			addTodoErrorMessage = result.ErrorMessage;
+			return;
+		}
+
+		CancelAddChild();
+		await LoadTodosAsync();
+	}
+
+	private async Task HandleAddChildKeydownAsync(KeyboardEventArgs e, TodoItem parentTodo)
+	{
+		if (e.Key == "Enter")
+		{
+			await HandleSaveAddChildAsync(parentTodo);
+		}
+		else if (e.Key == "Escape")
+		{
+			CancelAddChild();
+		}
+	}
+
 	private void HandleDeleteTodoAsync(TodoItem todo)
 	{
 		deleteTodoErrorMessage = null;
@@ -472,6 +572,7 @@ else
 		editingTodoId = null;
 		editingTodoTitle = string.Empty;
 		pendingDeleteTodo = null;
+		CancelAddChild();
 	}
 
 	private async Task HandleSaveEditAsync(TodoItem todo)
