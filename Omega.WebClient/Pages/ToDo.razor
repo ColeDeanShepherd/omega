@@ -93,151 +93,25 @@ else if (!string.IsNullOrWhiteSpace(errorMessage))
 }
 else if (todos is { Count: > 0 })
 {
-	<ul class="list-group">
-		@foreach (var entry in todoEntries)
+	@if (activeTodoEntries.Count > 0)
+	{
+		@RenderTodoList(activeTodoEntries)
+	}
+	else
+	{
+		<p>No active top-level to-do items.</p>
+	}
+
+	@if (completedTopLevelTodoGroups.Count > 0)
+	{
+		<h2 class="h4 mt-4">Completed</h2>
+
+		@foreach (var group in completedTopLevelTodoGroups)
 		{
-			var todo = entry.Todo;
-			var canMoveUp = entry.SiblingIndex > 0;
-			var canMoveDown = entry.SiblingIndex < entry.SiblingCount - 1;
-			var isAddingChildForTodo = addingChildParentId == todo.Id;
-
-			<li class="list-group-item"
-				style="@GetTodoIndentStyle(entry.Depth)">
-				<div class="d-flex justify-content-between align-items-center gap-3">
-					<div class="d-flex align-items-center gap-2 flex-wrap flex-grow-1">
-						<input class="form-check-input mt-0"
-							type="checkbox"
-							checked="@todo.IsComplete"
-							disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id)"
-							@onchange="() => HandleToggleTodoAsync(todo)" />
-						@if (editingTodoId == todo.Id)
-						{
-							<input class="form-control form-control-sm"
-								type="text"
-								value="@editingTodoTitle"
-								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id))"
-								@onchange="(ChangeEventArgs e) => editingTodoTitle = e?.Value?.ToString() ?? string.Empty"
-								@onkeydown="(KeyboardEventArgs e) => HandleEditKeydownAsync(e, todo)" />
-						}
-						else
-						{
-							<span>@todo.Title</span>
-						}
-						</div>
-
-					<div class="d-flex gap-2">
-						<button class="btn btn-sm btn-outline-primary"
-								type="button"
-								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || delegatingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id)"
-								aria-label="Add child"
-								@onclick="() => HandleStartAddChild(todo)">
-							<i class="bi bi-plus-lg" aria-hidden="true"></i>
-						</button>
-
-						<button class="btn btn-sm btn-outline-info"
-								type="button"
-								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || delegatingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id)"
-								aria-label="Delegate to AI"
-								@onclick="() => HandleDelegateTodoAsync(todo)">
-							@if (delegatingTodoIds.Contains(todo.Id))
-							{
-								<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-							}
-							else
-							{
-								<i class="bi bi-robot" aria-hidden="true"></i>
-							}
-						</button>
-
-						<button class="btn btn-sm btn-outline-secondary"
-								type="button"
-								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id || !canMoveUp)"
-								aria-label="Move up"
-								@onclick="() => HandleMoveTodoAsync(todo, true)">
-							<i class="bi bi-arrow-up" aria-hidden="true"></i>
-						</button>
-						<button class="btn btn-sm btn-outline-secondary"
-								type="button"
-								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id || !canMoveDown)"
-								aria-label="Move down"
-								@onclick="() => HandleMoveTodoAsync(todo, false)">
-							<i class="bi bi-arrow-down" aria-hidden="true"></i>
-						</button>
-
-						@if (editingTodoId == todo.Id)
-						{
-							<button class="btn btn-sm btn-success"
-									type="button"
-									disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id))"
-									aria-label="Save"
-									@onclick="() => HandleSaveEditAsync(todo)">
-								<i class="bi bi-check" aria-hidden="true"></i>
-							</button>
-							<button class="btn btn-sm btn-secondary"
-									type="button"
-									disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id))"
-									aria-label="Cancel"
-									@onclick="CancelEdit">
-								<i class="bi bi-x" aria-hidden="true"></i>
-							</button>
-						}
-						else
-						{
-							<button class="btn btn-sm btn-outline-secondary"
-									type="button"
-									disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id))"
-									aria-label="Edit"
-									@onclick="() => HandleStartEditAsync(todo)">
-								<i class="bi bi-pencil" aria-hidden="true"></i>
-							</button>
-						}
-
-						<button class="btn btn-sm btn-outline-danger"
-								type="button"
-								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id)"
-								aria-label="Delete"
-								@onclick="() => HandleDeleteTodoAsync(todo)">
-							@if (deletingTodoIds.Contains(todo.Id))
-							{
-								<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-							}
-							else
-							{
-								<i class="bi bi-trash" aria-hidden="true"></i>
-							}
-						</button>
-					</div>
-				</div>
-
-				@if (isAddingChildForTodo)
-				{
-					<div class="d-flex gap-2 mt-2">
-						<input class="form-control form-control-sm"
-							type="text"
-							value="@addingChildTitle"
-							disabled="@isSubmittingTodo"
-							placeholder="Add a child to-do"
-							@onchange="(ChangeEventArgs e) => addingChildTitle = e?.Value?.ToString() ?? string.Empty"
-							@onkeydown="(KeyboardEventArgs e) => HandleAddChildKeydownAsync(e, todo)" />
-						<button class="btn btn-sm btn-success"
-							type="button"
-							disabled="@isSubmittingTodo"
-							aria-label="Save child"
-							@onclick="() => HandleSaveAddChildAsync(todo)">
-							<i class="bi bi-check" aria-hidden="true"></i>
-						</button>
-						<button class="btn btn-sm btn-secondary"
-							type="button"
-							disabled="@isSubmittingTodo"
-							aria-label="Cancel adding child"
-							@onclick="CancelAddChild">
-							<i class="bi bi-x" aria-hidden="true"></i>
-						</button>
-					</div>
-				}
-			</li>
+			<h3 class="h6 mt-3 mb-2">@GetCompletedGroupHeading(group.LocalCompletionDate)</h3>
+			@RenderTodoList(group.Entries)
 		}
-	</ul>
+	}
 }
 else
 {
@@ -289,6 +163,8 @@ else
 	private HashSet<int> movingTodoIds = [];
 	private HashSet<int> delegatingTodoIds = [];
 	private IReadOnlyList<TodoListEntry> todoEntries = [];
+	private IReadOnlyList<TodoListEntry> activeTodoEntries = [];
+	private IReadOnlyList<CompletedTopLevelTodoGroup> completedTopLevelTodoGroups = [];
 	private TodoItem? pendingDeleteTodo;
 	private int? editingTodoId;
 	private string editingTodoTitle = string.Empty;
@@ -557,6 +433,7 @@ else
 		var result = await ApiClient.GetTodosAsync();
 		todos = result.Todos;
 		todoEntries = BuildTodoEntries(result.Todos);
+		RefreshTodoSections(result.Todos, todoEntries);
 		errorMessage = result.ErrorMessage;
 		isLoading = false;
 	}
@@ -622,25 +499,218 @@ else
 	private static IReadOnlyList<TodoListEntry> BuildTodoEntries(IReadOnlyList<TodoItem> source)
 	{
 		var orderedEntries = new List<TodoListEntry>();
-		AppendEntries(source, 0, null, orderedEntries);
+		AppendEntries(source, 0, null, 0, orderedEntries);
 		return orderedEntries;
 	}
 
-	private static void AppendEntries(IReadOnlyList<TodoItem> source, int depth, int? parentId, ICollection<TodoListEntry> destination)
+	private static void AppendEntries(IReadOnlyList<TodoItem> source, int depth, int? parentId, int topLevelTodoId, ICollection<TodoListEntry> destination)
 	{
 		for (var i = 0; i < source.Count; i++)
 		{
 			var todo = source[i];
-			destination.Add(new TodoListEntry(todo, depth, parentId, i, source.Count));
+			var currentTopLevelTodoId = depth == 0 ? todo.Id : topLevelTodoId;
+			destination.Add(new TodoListEntry(todo, depth, parentId, i, source.Count, currentTopLevelTodoId));
 
 			if (todo.Children.Count > 0)
 			{
-				AppendEntries(todo.Children, depth + 1, todo.Id, destination);
+				AppendEntries(todo.Children, depth + 1, todo.Id, currentTopLevelTodoId, destination);
 			}
 		}
 	}
 
+	private void RefreshTodoSections(IReadOnlyList<TodoItem> sourceTodos, IReadOnlyList<TodoListEntry> allEntries)
+	{
+		var completedTopLevelTodos = sourceTodos
+			.Where(todo => todo.IsComplete)
+			.ToArray();
+
+		var completedTopLevelTodoIds = completedTopLevelTodos
+			.Select(todo => todo.Id)
+			.ToHashSet();
+
+		activeTodoEntries = allEntries
+			.Where(entry => !completedTopLevelTodoIds.Contains(entry.TopLevelTodoId))
+			.ToArray();
+
+		var entriesByTopLevelTodoId = allEntries
+			.GroupBy(entry => entry.TopLevelTodoId)
+			.ToDictionary(group => group.Key, group => (IReadOnlyList<TodoListEntry>)group.ToArray());
+
+		completedTopLevelTodoGroups = completedTopLevelTodos
+			.GroupBy(todo => todo.CompletedAt?.ToLocalTime().Date)
+			.OrderByDescending(group => group.Key.HasValue)
+			.ThenByDescending(group => group.Key)
+			.Select(group =>
+			{
+				var orderedTopLevelTodos = group
+					.OrderByDescending(todo => todo.CompletedAt.HasValue)
+					.ThenByDescending(todo => todo.CompletedAt)
+					.Select(todo => todo.Id)
+					.ToArray();
+
+				var groupedEntries = orderedTopLevelTodos
+					.SelectMany(id => entriesByTopLevelTodoId.GetValueOrDefault(id) ?? [])
+					.ToArray();
+
+				return new CompletedTopLevelTodoGroup(group.Key, groupedEntries);
+			})
+			.ToArray();
+	}
+
+	private static string GetCompletedGroupHeading(DateTime? localCompletionDate) =>
+		localCompletionDate is null
+			? "Unknown completion date"
+			: localCompletionDate.Value.ToString("D");
+
 	private static string GetTodoIndentStyle(int depth) => $"padding-left: {1 + (depth * 2)}rem";
+
+	private RenderFragment RenderTodoList(IReadOnlyList<TodoListEntry> entries) =>
+	@<ul class="list-group">
+		@foreach (var entry in entries)
+		{
+			var todo = entry.Todo;
+			var canMoveUp = entry.SiblingIndex > 0;
+			var canMoveDown = entry.SiblingIndex < entry.SiblingCount - 1;
+			var isAddingChildForTodo = addingChildParentId == todo.Id;
+
+			<li @key="todo.Id"
+				class="list-group-item"
+				style="@GetTodoIndentStyle(entry.Depth)">
+				<div class="d-flex justify-content-between align-items-center gap-3">
+					<div class="d-flex align-items-center gap-2 flex-wrap flex-grow-1">
+						<input class="form-check-input mt-0"
+							type="checkbox"
+							checked="@todo.IsComplete"
+							disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id)"
+							@onchange="() => HandleToggleTodoAsync(todo)" />
+						@if (editingTodoId == todo.Id)
+						{
+							<input class="form-control form-control-sm"
+								type="text"
+								value="@editingTodoTitle"
+								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id))"
+								@onchange="(ChangeEventArgs e) => editingTodoTitle = e?.Value?.ToString() ?? string.Empty"
+								@onkeydown="(KeyboardEventArgs e) => HandleEditKeydownAsync(e, todo)" />
+						}
+						else
+						{
+							<span>@todo.Title</span>
+						}
+						</div>
+
+					<div class="d-flex gap-2">
+						<button class="btn btn-sm btn-outline-primary"
+								type="button"
+								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || delegatingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id)"
+								aria-label="Add child"
+								@onclick="() => HandleStartAddChild(todo)">
+							<i class="bi bi-plus-lg" aria-hidden="true"></i>
+						</button>
+
+						<button class="btn btn-sm btn-outline-info"
+								type="button"
+								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || delegatingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id)"
+								aria-label="Delegate to AI"
+								@onclick="() => HandleDelegateTodoAsync(todo)">
+							@if (delegatingTodoIds.Contains(todo.Id))
+							{
+								<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+							}
+							else
+							{
+								<i class="bi bi-robot" aria-hidden="true"></i>
+							}
+						</button>
+
+						<button class="btn btn-sm btn-outline-secondary"
+								type="button"
+								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id || !canMoveUp)"
+								aria-label="Move up"
+								@onclick="() => HandleMoveTodoAsync(todo, true)">
+							<i class="bi bi-arrow-up" aria-hidden="true"></i>
+						</button>
+						<button class="btn btn-sm btn-outline-secondary"
+								type="button"
+								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id || !canMoveDown)"
+								aria-label="Move down"
+								@onclick="() => HandleMoveTodoAsync(todo, false)">
+							<i class="bi bi-arrow-down" aria-hidden="true"></i>
+						</button>
+
+						@if (editingTodoId == todo.Id)
+						{
+							<button class="btn btn-sm btn-success"
+									type="button"
+									disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id))"
+									aria-label="Save"
+									@onclick="() => HandleSaveEditAsync(todo)">
+								<i class="bi bi-check" aria-hidden="true"></i>
+							</button>
+							<button class="btn btn-sm btn-secondary"
+									type="button"
+									disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id))"
+									aria-label="Cancel"
+									@onclick="CancelEdit">
+								<i class="bi bi-x" aria-hidden="true"></i>
+							</button>
+						}
+						else
+						{
+							<button class="btn btn-sm btn-outline-secondary"
+									type="button"
+									disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id))"
+									aria-label="Edit"
+									@onclick="() => HandleStartEditAsync(todo)">
+								<i class="bi bi-pencil" aria-hidden="true"></i>
+							</button>
+						}
+
+						<button class="btn btn-sm btn-outline-danger"
+								type="button"
+								disabled="@(isSubmittingTodo || togglingTodoIds.Contains(todo.Id) || deletingTodoIds.Contains(todo.Id) || movingTodoIds.Contains(todo.Id) || editingTodoId == todo.Id)"
+								aria-label="Delete"
+								@onclick="() => HandleDeleteTodoAsync(todo)">
+							@if (deletingTodoIds.Contains(todo.Id))
+							{
+								<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+							}
+							else
+							{
+								<i class="bi bi-trash" aria-hidden="true"></i>
+							}
+						</button>
+					</div>
+				</div>
+
+				@if (isAddingChildForTodo)
+				{
+					<div class="d-flex gap-2 mt-2">
+						<input class="form-control form-control-sm"
+							type="text"
+							value="@addingChildTitle"
+							disabled="@isSubmittingTodo"
+							placeholder="Add a child to-do"
+							@onchange="(ChangeEventArgs e) => addingChildTitle = e?.Value?.ToString() ?? string.Empty"
+							@onkeydown="(KeyboardEventArgs e) => HandleAddChildKeydownAsync(e, todo)" />
+						<button class="btn btn-sm btn-success"
+							type="button"
+							disabled="@isSubmittingTodo"
+							aria-label="Save child"
+							@onclick="() => HandleSaveAddChildAsync(todo)">
+							<i class="bi bi-check" aria-hidden="true"></i>
+						</button>
+						<button class="btn btn-sm btn-secondary"
+							type="button"
+							disabled="@isSubmittingTodo"
+							aria-label="Cancel adding child"
+							@onclick="CancelAddChild">
+							<i class="bi bi-x" aria-hidden="true"></i>
+						</button>
+					</div>
+				}
+			</li>
+		}
+	</ul>;
 
 	private enum AddTodoKind
 	{
@@ -648,5 +718,7 @@ else
 		ChangeOmega
 	}
 
-	private sealed record TodoListEntry(TodoItem Todo, int Depth, int? ParentId, int SiblingIndex, int SiblingCount);
+	private sealed record TodoListEntry(TodoItem Todo, int Depth, int? ParentId, int SiblingIndex, int SiblingCount, int TopLevelTodoId);
+
+	private sealed record CompletedTopLevelTodoGroup(DateTime? LocalCompletionDate, IReadOnlyList<TodoListEntry> Entries);
 }
