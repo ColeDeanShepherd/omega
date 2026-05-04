@@ -14,6 +14,7 @@ public interface IAgentDelegationService
 
 public sealed class AgentDelegationService(
     ITodoService todoService,
+    IAiContextService aiContextService,
     IOptions<AgentDelegationSettings> options,
     ILogger<AgentDelegationService> logger) : IAgentDelegationService
 {
@@ -64,7 +65,22 @@ public sealed class AgentDelegationService(
         }
 
         var executionOrder = BuildExecutionOrder(targetTodo);
-        var prompt = BuildDelegationPrompt(containingTree, targetTodo, pathToTarget, executionOrder);
+        var aiContextResult = await aiContextService.GetAiContextAsync(cancellationToken);
+
+        if (aiContextResult.Error is not null)
+        {
+            return DelegateTodoServiceResult.Failure(
+                aiContextResult.Error.Title,
+                aiContextResult.Error.Detail,
+                aiContextResult.Error.StatusCode);
+        }
+
+        var prompt = BuildDelegationPrompt(
+            containingTree,
+            targetTodo,
+            pathToTarget,
+            executionOrder,
+            aiContextResult.Content ?? string.Empty);
 
         try
         {
@@ -258,7 +274,8 @@ public sealed class AgentDelegationService(
         TodoItem containingTree,
         TodoItem targetTodo,
         IReadOnlyList<TodoItem> pathToTarget,
-        IReadOnlyList<TodoItem> executionOrder)
+        IReadOnlyList<TodoItem> executionOrder,
+        string aiContext)
     {
         var containingTreeJson = JsonSerializer.Serialize(containingTree, new JsonSerializerOptions { WriteIndented = true });
         var targetSubtreeJson = JsonSerializer.Serialize(targetTodo, new JsonSerializerOptions { WriteIndented = true });
@@ -275,6 +292,9 @@ public sealed class AgentDelegationService(
         builder.AppendLine("- If the target to-do has descendants, perform descendant tasks first in execution order, then decide whether the parent target requires additional action.");
         builder.AppendLine("- Do not modify todo completion state in this app.");
         builder.AppendLine("- Summarize what you changed, what you ran, and any blockers.");
+        builder.AppendLine();
+        builder.AppendLine("AI context (user-maintained markdown):");
+        builder.AppendLine(string.IsNullOrWhiteSpace(aiContext) ? "(empty)" : aiContext);
         builder.AppendLine();
         builder.AppendLine($"Target to-do: {targetTodo.Title} (id: {targetTodo.Id})");
         builder.AppendLine($"Path to target within containing tree: {targetPathText}");

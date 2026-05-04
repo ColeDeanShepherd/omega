@@ -6,6 +6,8 @@ namespace Omega.WebClient.Services;
 public interface IApiClient
 {
     Task<TodoApiResult> GetTodosAsync(CancellationToken cancellationToken = default);
+    Task<GetAiContextApiResult> GetAiContextAsync(CancellationToken cancellationToken = default);
+    Task<SaveAiContextApiResult> SaveAiContextAsync(string content, CancellationToken cancellationToken = default);
     Task<AddTodoApiResult> AddTodoAsync(string title, int? parentId = null, CancellationToken cancellationToken = default);
     Task<SetTodoCompletionApiResult> SetTodoCompletionAsync(int id, bool isComplete, CancellationToken cancellationToken = default);
     Task<UpdateTodoTitleApiResult> UpdateTodoTitleAsync(int id, string title, CancellationToken cancellationToken = default);
@@ -84,6 +86,83 @@ public sealed class ApiClient(HttpClient httpClient, IConfiguration configuratio
         catch (Exception ex)
         {
             return AddTodoApiResult.Failure($"Failed to add to-do item: {ex.Message}");
+        }
+    }
+
+    public async Task<GetAiContextApiResult> GetAiContextAsync(CancellationToken cancellationToken = default)
+    {
+        var apiBaseUrl = configuration["ApiBaseUrl"];
+
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            return GetAiContextApiResult.Failure("Client configuration is missing ApiBaseUrl.");
+        }
+
+        var aiContextUri = $"{apiBaseUrl.TrimEnd('/')}/api/ai-context";
+
+        try
+        {
+            var response = await httpClient.GetAsync(aiContextUri, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                var errorMessage = string.IsNullOrWhiteSpace(errorContent)
+                    ? $"Failed to load AI context. HTTP {(int)response.StatusCode}."
+                    : $"Failed to load AI context. {errorContent}";
+
+                return GetAiContextApiResult.Failure(errorMessage);
+            }
+
+            var aiContext = await response.Content.ReadFromJsonAsync<AiContextResponse>(cancellationToken: cancellationToken);
+
+            return aiContext is null
+                ? GetAiContextApiResult.Failure("The API did not return AI context content.")
+                : GetAiContextApiResult.Success(aiContext.Content);
+        }
+        catch (Exception ex)
+        {
+            return GetAiContextApiResult.Failure($"Failed to load AI context: {ex.Message}");
+        }
+    }
+
+    public async Task<SaveAiContextApiResult> SaveAiContextAsync(string content, CancellationToken cancellationToken = default)
+    {
+        var apiBaseUrl = configuration["ApiBaseUrl"];
+
+        if (string.IsNullOrWhiteSpace(apiBaseUrl))
+        {
+            return SaveAiContextApiResult.Failure("Client configuration is missing ApiBaseUrl.");
+        }
+
+        var aiContextUri = $"{apiBaseUrl.TrimEnd('/')}/api/ai-context";
+
+        try
+        {
+            var response = await httpClient.PutAsJsonAsync(
+                aiContextUri,
+                new UpdateAiContextRequest(content ?? string.Empty),
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                var errorMessage = string.IsNullOrWhiteSpace(errorContent)
+                    ? $"Failed to save AI context. HTTP {(int)response.StatusCode}."
+                    : $"Failed to save AI context. {errorContent}";
+
+                return SaveAiContextApiResult.Failure(errorMessage);
+            }
+
+            var aiContext = await response.Content.ReadFromJsonAsync<AiContextResponse>(cancellationToken: cancellationToken);
+
+            return aiContext is null
+                ? SaveAiContextApiResult.Failure("The API did not return AI context content.")
+                : SaveAiContextApiResult.Success(aiContext.Content);
+        }
+        catch (Exception ex)
+        {
+            return SaveAiContextApiResult.Failure($"Failed to save AI context: {ex.Message}");
         }
     }
 
@@ -366,4 +445,20 @@ public sealed record DeleteTodoApiResult(string? ErrorMessage)
 
     public static DeleteTodoApiResult Failure(string errorMessage) =>
         new(errorMessage);
+}
+
+public sealed record GetAiContextApiResult(string Content, string? ErrorMessage)
+{
+    public static GetAiContextApiResult Success(string content) => new(content, null);
+
+    public static GetAiContextApiResult Failure(string errorMessage) =>
+        new(string.Empty, errorMessage);
+}
+
+public sealed record SaveAiContextApiResult(string Content, string? ErrorMessage)
+{
+    public static SaveAiContextApiResult Success(string content) => new(content, null);
+
+    public static SaveAiContextApiResult Failure(string errorMessage) =>
+        new(string.Empty, errorMessage);
 }

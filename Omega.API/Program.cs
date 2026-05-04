@@ -6,6 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<ITodoService, TodoService>();
+builder.Services.AddScoped<IAiContextService, AiContextService>();
 builder.Services.AddScoped<IAgentDelegationService, AgentDelegationService>();
 builder.Services.Configure<DataStoreSettings>(builder.Configuration.GetSection(DataStoreSettings.SectionName));
 builder.Services.Configure<AgentDelegationSettings>(builder.Configuration.GetSection(AgentDelegationSettings.SectionName));
@@ -166,5 +167,42 @@ app.MapPost("/api/todos/{id:int}/delegate", async (
     return Results.Ok(new DelegateTodoResponse(result.ProcessId!.Value, result.Message!));
 })
 .WithName("DelegateTodo");
+
+app.MapGet("/api/ai-context", async (
+    IAiContextService aiContextService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await aiContextService.GetAiContextAsync(cancellationToken);
+
+    if (result.Error is not null)
+    {
+        return Results.Problem(
+            title: result.Error.Title,
+            detail: result.Error.Detail,
+            statusCode: result.Error.StatusCode);
+    }
+
+    return Results.Ok(new AiContextResponse(result.Content ?? string.Empty));
+})
+.WithName("GetAiContext");
+
+app.MapPut("/api/ai-context", async (
+    UpdateAiContextRequest request,
+    IAiContextService aiContextService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await aiContextService.SaveAiContextAsync(request.Content, cancellationToken);
+
+    if (result.Error is not null)
+    {
+        return Results.Problem(
+            title: result.Error.Title,
+            detail: result.Error.Detail,
+            statusCode: result.Error.StatusCode);
+    }
+
+    return Results.Ok(new AiContextResponse(result.Content ?? string.Empty));
+})
+.WithName("SaveAiContext");
 
 app.Run();
