@@ -6,3 +6,22 @@ body {
   max-width: 38rem;
   padding: 2rem;
 }
+
+#app h2 {
+  margin: 1rem 0 0.4rem;
+  font-size: 1rem;
+}
+
+#app ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+#app li {
+  margin: 0.25rem 0;
+  line-height: 1.3;
+}
+
+#app li small {
+  color: #4b5563;
+}
