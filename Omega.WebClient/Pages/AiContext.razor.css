@@ -1,8 +1,0 @@
-.ai-context-textarea {
-    min-height: 28rem;
-    height: calc(100vh - 20rem);
-    overflow-y: auto;
-    resize: vertical;
-    font-family: Consolas, "Courier New", monospace;
-    line-height: 1.45;
-}
