@@ -1,6 +1,6 @@
-import { loadPullRequests, AdoGitPullRequest } from './data/pull-requests';
-import { DataSource } from './data/data-source';
-import { shuffledArray } from './ui/array-utils';
+import { loadPullRequests, AdoGitPullRequest } from './pull-requests';
+import { DataSource } from './data-source';
+import { shuffledArray } from './array-utils';
 import { prsView } from './ui/prs-view';
 import { IViewInstance, ViewInstance } from './ui/view-instance';
 

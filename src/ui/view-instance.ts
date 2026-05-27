@@ -1,4 +1,4 @@
-import { DataSource, IDataSource } from '../data/data-source';
+import { DataSource, IDataSource } from '../data-source';
 
 export interface IViewInstance {
   dataSource: IDataSource;

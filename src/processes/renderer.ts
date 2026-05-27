@@ -1,8 +1,8 @@
 // Entry point of the Electron renderer process.
 
-import './index.css';
+import '../index.css';
 
-import { appViewInstances } from './app-view-instances';
+import { appViewInstances } from '../app-view-instances';
 
 const appContainer = document.querySelector<HTMLDivElement>('#app');
 if (!appContainer) {

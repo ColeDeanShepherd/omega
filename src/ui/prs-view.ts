@@ -4,7 +4,7 @@ import type {
   PullRequestReviewer,
   PullRequestStatus,
   ReviewerVote,
-} from '../data/pull-requests';
+} from '../pull-requests';
 
 const summarizeReviewers = (reviewers: ReadonlyArray<PullRequestReviewer>): string => {
   const counts = reviewers.reduce(
