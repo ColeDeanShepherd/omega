@@ -1,4 +1,5 @@
 import './index.css';
+import { loadPullRequests } from './data/pull-requests';
 import { appView } from './ui/app-view';
 
 const appContainer = document.querySelector<HTMLDivElement>('#app');
@@ -11,4 +12,5 @@ const render = (content: Node): void => {
   appContainer.replaceChildren(content);
 };
 
-render(appView(window.versions));
+const pullRequests = await loadPullRequests();
+render(appView(window.versions, pullRequests));
