@@ -3,56 +3,35 @@
 import './index.css';
 
 import { loadPullRequests, AdoGitPullRequest } from './data/pull-requests';
-import { DataSource, IDataSource } from './data/data-source';
+import { DataSource } from './data/data-source';
+import { shuffledArray } from './ui/array-utils';
 import { prsView } from './ui/prs-view';
+import { IViewInstance, ViewInstance } from './ui/view-instance';
 
-
-const appContainer = document.querySelector<HTMLDivElement>('#app');
-if (!appContainer) {
-  throw new Error('Missing #app root element');
-}
-
-export interface IViewInstance {
-  dataSource: IDataSource;
-  render: () => HTMLElement;
-}
-
-export class ViewInstance<T> implements IViewInstance {
-  constructor(
-    public readonly dataSource: DataSource<T>,
-    public readonly renderData: (data: T | null) => HTMLElement,
-  ) {}
-
-  render(): HTMLElement {
-    const data = this.dataSource.getData();
-    return this.renderData(data);
-  }
-}
+// #region View Instances
 
 export const appViewInstances: IViewInstance[] = [];
 
-const shuffledArray = <T>(array: T[]): T[] => {
-  const result = [...array];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
-
-const loadAndShufflePullRequests = async (): Promise<ReadonlyArray<AdoGitPullRequest>> => {
-  const pullRequests = (await loadPullRequests()).slice();
-  return shuffledArray(pullRequests);
-}
-
 const prDataSource =
   new DataSource<ReadonlyArray<AdoGitPullRequest>>(
-    loadAndShufflePullRequests,
+    async () => {
+      const pullRequests = (await loadPullRequests()).slice();
+      return shuffledArray(pullRequests);
+    },
     /* reloadIntervalMs: */ 1_000,
   );
 
 const prsViewInstance = new ViewInstance(prDataSource, prsView);
 appViewInstances.push(prsViewInstance);
+
+// #endregion View Instances
+
+// #region Start Renderer
+
+const appContainer = document.querySelector<HTMLDivElement>('#app');
+if (!appContainer) {
+  throw new Error('Missing #app root element');
+}
 
 const rerenderApp = () => {
   const content: HTMLElement[] = appViewInstances.map(instance => instance.render());
@@ -65,3 +44,5 @@ const rerenderApp = () => {
 const dataSources = Array.from(new Set(appViewInstances.map(instance => instance.dataSource)));
 dataSources.forEach(dataSource => dataSource.subscribe(rerenderApp));
 dataSources.forEach(dataSource => dataSource.activate());
+
+// #endregion Start Renderer
