@@ -75,7 +75,10 @@ const toAppPullRequest = (pullRequest: AzRepoPullRequest): AdoGitPullRequest => 
 
 const runAzCli = async (args: ReadonlyArray<string>): Promise<string> => {
   try {
-    const { stdout } = await execFileAsync('az', args, {
+    const command = (process.platform === 'win32') ? 'cmd.exe' : 'az';
+    const commandArgs = (process.platform === 'win32') ? ['/d', '/s', '/c', 'az', ...args] : [...args];
+
+    const { stdout } = await execFileAsync(command, commandArgs, {
       maxBuffer: 10 * 1024 * 1024,
     });
 
