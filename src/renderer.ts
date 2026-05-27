@@ -2,31 +2,7 @@
 
 import './index.css';
 
-import { loadPullRequests, AdoGitPullRequest } from './data/pull-requests';
-import { DataSource } from './data/data-source';
-import { shuffledArray } from './ui/array-utils';
-import { prsView } from './ui/prs-view';
-import { IViewInstance, ViewInstance } from './ui/view-instance';
-
-// #region View Instances
-
-export const appViewInstances: IViewInstance[] = [];
-
-const prDataSource =
-  new DataSource<ReadonlyArray<AdoGitPullRequest>>(
-    async () => {
-      const pullRequests = (await loadPullRequests()).slice();
-      return shuffledArray(pullRequests);
-    },
-    /* reloadIntervalMs: */ 1_000,
-  );
-
-const prsViewInstance = new ViewInstance(prDataSource, prsView);
-appViewInstances.push(prsViewInstance);
-
-// #endregion View Instances
-
-// #region Start Renderer
+import { appViewInstances } from './app-view-instances';
 
 const appContainer = document.querySelector<HTMLDivElement>('#app');
 if (!appContainer) {
@@ -44,5 +20,3 @@ const rerenderApp = () => {
 const dataSources = Array.from(new Set(appViewInstances.map(instance => instance.dataSource)));
 dataSources.forEach(dataSource => dataSource.subscribe(rerenderApp));
 dataSources.forEach(dataSource => dataSource.activate());
-
-// #endregion Start Renderer
