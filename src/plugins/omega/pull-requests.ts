@@ -83,5 +83,16 @@ export const mockAdoPullRequests: ReadonlyArray<AdoGitPullRequest> = [
   },
 ];
 
-export const loadPullRequests = async (): Promise<ReadonlyArray<AdoGitPullRequest>> =>
+export const loadFakePullRequests = async (): Promise<ReadonlyArray<AdoGitPullRequest>> =>
   Promise.resolve(mockAdoPullRequests);
+
+export const loadPullRequests = async (
+  organization: string,
+  projects: ReadonlyArray<string>,
+): Promise<ReadonlyArray<AdoGitPullRequest>> => {
+  if (window.electronApi?.loadPullRequests) {
+    return window.electronApi.loadPullRequests(organization, projects);
+  }
+
+  return Promise.resolve(mockAdoPullRequests);
+};

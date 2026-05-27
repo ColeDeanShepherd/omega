@@ -4,13 +4,13 @@ import { IViewInstance, ViewInstance } from '../../ui/view-instance';
 
 import { IPlugin } from '../plugin';
 
-import { loadPullRequests, AdoGitPullRequest } from './pull-requests';
+import { loadPullRequests, AdoGitPullRequest, loadFakePullRequests } from './pull-requests';
 import { prsView } from './prs-view';
 
 const prDataSource =
   new DataSource<ReadonlyArray<AdoGitPullRequest>>(
     async () => {
-      const pullRequests = (await loadPullRequests()).slice();
+      const pullRequests = (await loadFakePullRequests()).slice();
       return shuffledArray(pullRequests);
     },
     /* reloadIntervalMs: */ 1_000,

@@ -1,8 +1,11 @@
 // Entry point of the Electron main process.
 
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
+
+// eslint-disable-next-line import/no-unresolved
+import { loadAdoPullRequests } from './ado-client.js';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -38,6 +41,9 @@ const createWindow = () => {
 // Some APIs can only be used after this event occurs.
 app.on('ready', () =>
 {
+  ipcMain.handle('ado:loadPullRequests', (_, organization: string, projects: ReadonlyArray<string>) =>
+    loadAdoPullRequests(organization, projects),
+  );
   createWindow();
 });
 

@@ -1,7 +1,6 @@
-- effect-like system
-- load real PRs
+- plugin support in "main" process
 - better styling
-- plugin/forking system
+- effect-like system
 - check PRs for errors
 - notify "should fix PR"
 - spin up agent to fix PR
