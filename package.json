@@ -1,0 +1,22 @@
+{
+  "name": "omega",
+  "version": "0.0.1",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ColeDeanShepherd/omega.git"
+  },
+  "author": "Cole Shepherd",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ColeDeanShepherd/omega/issues"
+  },
+  "homepage": "https://github.com/ColeDeanShepherd/omega#readme",
+  "devDependencies": {
+    "electron": "^42.3.0"
+  }
+}
