@@ -47,12 +47,7 @@ public static class BlazorUiNodeRenderer
 
 public abstract class BlazorUiComponentBase : ComponentBase
 {
-	public readonly Func<UiNode> ViewFn;
-	
-	public BlazorUiComponentBase(Func<UiNode> viewFn)
-	{
-		ViewFn = viewFn;
-	}
+	public abstract UiNode ViewFn();
 
 	protected override void BuildRenderTree(RenderTreeBuilder builder) =>
 		BlazorUiNodeRenderer.Render(builder, ViewFn());

@@ -10,9 +10,7 @@ namespace Omega.WebClient.Pages;
 [Layout(typeof(MainLayout))]
 public sealed class NotFound : BlazorUiComponentBase
 {
-	public NotFound() : base(ViewFn) { }
-
-	public static UiNode ViewFn() =>
+	public override UiNode ViewFn() =>
 		_.Fragment([
 			_.H3([ _.Text("Not Found") ]),
 			_.P([ _.Text("Sorry, the content you are looking for does not exist.") ])
