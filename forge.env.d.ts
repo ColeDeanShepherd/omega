@@ -4,11 +4,6 @@ import type { AdoGitPullRequest } from './src/data/pull-requests';
 
 declare global {
 	interface Window {
-		electronApi: Readonly<{
-			onAppViewUpdate: (
-				listener: (pullRequests: ReadonlyArray<AdoGitPullRequest>) => void,
-			) => () => void;
-		}>;
 	}
 }
 

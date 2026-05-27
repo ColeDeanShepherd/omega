@@ -1,4 +1,9 @@
-export class DataSource<T> {
+export interface IDataSource {
+  activate: () => void;
+  subscribe: (onDataReloaded: (data: unknown) => void) => () => void;
+}
+
+export class DataSource<T> implements IDataSource {
   private _data: T | null = null;
   private subscribers = new Set<(data: T) => void>();
   private activated = false;
