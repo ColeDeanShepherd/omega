@@ -1,10 +1,14 @@
 import './index.css';
 import { appView } from './ui/app-view';
 
-const appContainer = document.getElementById('app')!;
+const appContainer = document.querySelector<HTMLDivElement>('#app');
 
-const render = (content: Node) => {
+if (!appContainer) {
+  throw new Error('Missing #app root element');
+}
+
+const render = (content: Node): void => {
   appContainer.replaceChildren(content);
 };
 
-render(appView());
+render(appView(window.versions));

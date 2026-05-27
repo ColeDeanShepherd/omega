@@ -1,20 +1,10 @@
-import { _ } from './lib';
+import { p, text } from './lib';
 
-type VersionsApi = {
-  node: () => string;
-  chrome: () => string;
-  electron: () => string;
-};
+type VersionsApi = Window['versions'];
 
-declare global {
-  interface Window {
-    versions: VersionsApi;
-  }
-}
-
-export const appView = () =>
-  _.p([
-    _.text(
-      `This app is using Chrome (v${window.versions.chrome()}), Node.js (v${window.versions.node()}), and Electron (v${window.versions.electron()})`,
+export const appView = (versions: VersionsApi) =>
+  p(
+    text(
+      `This app is using Chrome (v${versions.chrome}), Node.js (v${versions.node}), and Electron (v${versions.electron})`,
     ),
-  ]);
+  );
