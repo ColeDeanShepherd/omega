@@ -17,7 +17,9 @@ const prDataSource =
   );
 const prsViewInstance = new ViewInstance(prDataSource, prsView);
 
-const appViewInstances: IViewInstance[] = [prsViewInstance];
+const appViewInstances: IViewInstance[] = [
+  //prsViewInstance
+];
 
 export const omegaPlugin: IPlugin = {
   viewInstances: appViewInstances,
