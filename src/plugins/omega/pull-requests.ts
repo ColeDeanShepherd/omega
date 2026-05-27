@@ -1,6 +1,96 @@
 export type PullRequestStatus = 'active' | 'completed' | 'abandoned';
 export type ReviewerVote = 'approved' | 'waiting' | 'rejected';
 
+export type AdoPrStepLogRequest = Readonly<{
+  organization: string;
+  project: string;
+  pullRequestId: number;
+  definitionId: number;
+  branch: string;
+  requiredCheckName: string;
+  stageName: string;
+  stepName: string;
+}>;
+
+export type AdoBuildLogsResponse = Readonly<
+  | {
+      format: 'text';
+      text: string;
+    }
+  | {
+      format: 'json';
+      json: unknown;
+    }
+>;
+
+export type AdoPrStepLogResult = Readonly<{
+  policy: {
+    evaluationId?: string;
+    artifactId?: string;
+    status: string;
+    policyTypeId?: string;
+    policyTypeDisplayName?: string;
+    configurationId?: number;
+    isBlocking: boolean;
+    isEnabled: boolean;
+    context: Readonly<Record<string, unknown>>;
+  };
+  build: {
+    id: number;
+    buildNumber?: string;
+    definitionId?: number;
+    definitionName?: string;
+    sourceBranch?: string;
+    reason?: string;
+    status?: string;
+    result?: string;
+    queueTime?: string;
+    startTime?: string;
+    finishTime?: string;
+  };
+  stage: {
+    id?: string;
+    parentId?: string;
+    type?: string;
+    name?: string;
+    state?: string;
+    result?: string;
+    errorCount?: number;
+    warningCount?: number;
+    log?: {
+      id?: number;
+      type?: string;
+      url?: string;
+    };
+    issues: ReadonlyArray<{
+      type?: string;
+      category?: string;
+      message?: string;
+    }>;
+  };
+  step: {
+    id?: string;
+    parentId?: string;
+    type?: string;
+    name?: string;
+    state?: string;
+    result?: string;
+    errorCount?: number;
+    warningCount?: number;
+    log?: {
+      id?: number;
+      type?: string;
+      url?: string;
+    };
+    issues: ReadonlyArray<{
+      type?: string;
+      category?: string;
+      message?: string;
+    }>;
+  };
+  log: AdoBuildLogsResponse;
+}>;
+
 export type PullRequestReviewer = Readonly<{
   displayName: string;
   vote: ReviewerVote;
@@ -95,4 +185,14 @@ export const loadPullRequests = async (
   }
 
   return Promise.resolve(mockAdoPullRequests);
+};
+
+export const loadPrStepLog = async (
+  request: AdoPrStepLogRequest,
+): Promise<AdoPrStepLogResult> => {
+  if (window.electronApi?.loadPrStepLog) {
+    return window.electronApi.loadPrStepLog(request);
+  }
+
+  throw new Error('PR step log loading is only available in the Electron main process context.');
 };

@@ -5,7 +5,8 @@ import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
 // eslint-disable-next-line import/no-unresolved
-import { loadAdoPullRequests } from './ado-client.js';
+import { loadAdoPullRequests, loadAdoPrStepLog } from './ado-client.js';
+import type { AdoPrStepLogRequest } from './ado-client.js';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -43,6 +44,9 @@ app.on('ready', () =>
 {
   ipcMain.handle('ado:loadPullRequests', (_, organization: string, projects: ReadonlyArray<string>) =>
     loadAdoPullRequests(organization, projects),
+  );
+  ipcMain.handle('ado:loadPrStepLog', (_, request: AdoPrStepLogRequest) =>
+    loadAdoPrStepLog(request),
   );
   createWindow();
 });

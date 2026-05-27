@@ -2,7 +2,11 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 
-import type { AdoGitPullRequest } from './plugins/omega/pull-requests';
+import type {
+	AdoGitPullRequest,
+	AdoPrStepLogRequest,
+	AdoPrStepLogResult,
+} from './plugins/omega/pull-requests';
 
 const electronApi = Object.freeze({
 	loadPullRequests: (
@@ -10,6 +14,8 @@ const electronApi = Object.freeze({
 		projects: ReadonlyArray<string>,
 	): Promise<ReadonlyArray<AdoGitPullRequest>> =>
 		ipcRenderer.invoke('ado:loadPullRequests', organization, projects) as Promise<ReadonlyArray<AdoGitPullRequest>>,
+	loadPrStepLog: (request: AdoPrStepLogRequest): Promise<AdoPrStepLogResult> =>
+		ipcRenderer.invoke('ado:loadPrStepLog', request) as Promise<AdoPrStepLogResult>,
 });
 
 contextBridge.exposeInMainWorld('electronApi', electronApi);
