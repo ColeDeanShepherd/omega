@@ -2,7 +2,9 @@
 
 import '../index.css';
 
-import { appViewInstances } from '../app-view-instances';
+import { registeredPlugins } from '../plugins/registered-plugins';
+
+const appViewInstances = registeredPlugins.flatMap(plugin => plugin.viewInstances);
 
 const appContainer = document.querySelector<HTMLDivElement>('#app');
 if (!appContainer) {

@@ -1,10 +1,10 @@
-import { div, h2, li, small, strong, ul } from './lib';
+import { div, h2, li, small, strong, ul } from '../../ui/lib';
 import type {
   AdoGitPullRequest,
   PullRequestReviewer,
   PullRequestStatus,
   ReviewerVote,
-} from '../pull-requests';
+} from './pull-requests';
 
 const summarizeReviewers = (reviewers: ReadonlyArray<PullRequestReviewer>): string => {
   const counts = reviewers.reduce(
