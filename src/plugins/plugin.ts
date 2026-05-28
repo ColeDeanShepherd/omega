@@ -1,5 +1,7 @@
+import { IRecurringTask } from '../recurring-task';
 import { IViewInstance } from '../ui/view-instance';
 
 export interface IPlugin {
-  viewInstances: IViewInstance[];
+  viewInstances?: IViewInstance[];
+  recurringTasks?: IRecurringTask[];
 }

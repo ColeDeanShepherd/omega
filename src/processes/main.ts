@@ -4,6 +4,9 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
+import { registeredPlugins } from '../plugins/registered-plugins';
+import { RecurringTaskRunner } from '../recurring-task';
+
 // eslint-disable-next-line import/no-unresolved
 import { loadAdoPullRequests, loadAdoPrStepLog } from './ado-client.js';
 import type { AdoPrStepLogRequest } from './ado-client.js';
@@ -12,6 +15,8 @@ import type { AdoPrStepLogRequest } from './ado-client.js';
 if (started) {
   app.quit();
 }
+
+const recurringTaskRunners: RecurringTaskRunner[] = [];
 
 const createWindow = () => {
   // Create the browser window.
@@ -42,6 +47,14 @@ const createWindow = () => {
 // Some APIs can only be used after this event occurs.
 app.on('ready', () =>
 {
+  registeredPlugins.forEach((plugin) => {
+    plugin.recurringTasks?.forEach((task) => {
+      const runner = new RecurringTaskRunner(task);
+      runner.start();
+      recurringTaskRunners.push(runner);
+    });
+  });
+  
   ipcMain.handle('ado:loadPullRequests', (_, organization: string, projects: ReadonlyArray<string>) =>
     loadAdoPullRequests(organization, projects),
   );
@@ -49,6 +62,11 @@ app.on('ready', () =>
     loadAdoPrStepLog(request),
   );
   createWindow();
+});
+
+app.on('before-quit', () => {
+  recurringTaskRunners.forEach((runner) => runner.stop());
+  recurringTaskRunners.length = 0;
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common
