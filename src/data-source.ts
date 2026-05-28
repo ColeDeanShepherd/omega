@@ -1,6 +1,6 @@
 import type { RRule } from 'rrule';
 
-import { RecurringTaskRunner } from './recurring-task';
+import { IRecurringTask, RecurringTaskRunner } from './recurring-task';
 
 export interface IDataSource {
   activate: () => void;
@@ -51,13 +51,11 @@ export class DataSource<T> implements IDataSource {
 
     void reload();
 
-    this.recurringRunner = new RecurringTaskRunner(
-      this.recurringRules,
-      reload,
-      (error: unknown) => {
-        console.error('Recurring data source task failed.', error);
-      },
-    );
+    const recurringTask: IRecurringTask = {
+      recurrenceRules: this.recurringRules,
+      runFn: reload,
+    };
+    this.recurringRunner = new RecurringTaskRunner(recurringTask);
     this.recurringRunner.start();
   }
 

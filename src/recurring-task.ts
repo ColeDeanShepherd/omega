@@ -1,6 +1,11 @@
 import { RRule } from 'rrule';
 import { pickMinimum } from './array-utils';
 
+export interface IRecurringTask {
+  recurrenceRules: ReadonlyArray<RRule>;
+  runFn: () => void | Promise<void>;
+}
+
 const getNextRuleOccurrence = (rule: RRule, now: Date): Date | null =>
   rule.after(now, /* inc: */ true);
 
@@ -15,16 +20,11 @@ const getNextOccurrence = (rules: ReadonlyArray<RRule>, now: Date): Date | null 
   );
 
 export class RecurringTaskRunner {
-  private readonly rules: ReadonlyArray<RRule>;
   private timeout: ReturnType<typeof setTimeout> | null = null;
   private running = false;
 
   constructor(
-    schedules: ReadonlyArray<RRule>,
-    private readonly task: () => void | Promise<void>,
-    private readonly onError: (error: unknown) => void,
-  ) {
-    this.rules = schedules;
+    private task: IRecurringTask) {
   }
 
   start(): void {
@@ -46,7 +46,7 @@ export class RecurringTaskRunner {
   }
 
   getNextRunAt(): Date | null {
-    return getNextOccurrence(this.rules, new Date());
+    return getNextOccurrence(this.task.recurrenceRules, new Date());
   }
 
   private scheduleNext(): void {
@@ -71,9 +71,9 @@ export class RecurringTaskRunner {
     }
 
     try {
-      await this.task();
+      await this.task.runFn();
     } catch (error) {
-      this.onError(error);
+      console.error('Recurring task failed.', error);
     } finally {
       this.scheduleNext();
     }
