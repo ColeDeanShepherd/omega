@@ -8,3 +8,15 @@ export const shuffledArray = <T>(array: ReadonlyArray<T>): T[] => {
 
   return result;
 };
+
+export const pickMinimum = <T>(
+  items: ReadonlyArray<T>,
+  getValue: (item: T) => number,
+): T | null =>
+  items.reduce<T | null>((minimum, item) => {
+    if (minimum === null) {
+      return item;
+    }
+
+    return (getValue(item) < getValue(minimum)) ? item : minimum;
+  }, /* initialValue: */ null);

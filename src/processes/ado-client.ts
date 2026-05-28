@@ -533,7 +533,7 @@ export const loadAdoPrStepLog = async (
 
   if (!matchingPolicy) {
     throw new Error(
-      `No rejected policy matched check \"${request.requiredCheckName}\" for PR ${String(request.pullRequestId)}.`,
+      `No rejected policy matched check "${request.requiredCheckName}" for PR ${String(request.pullRequestId)}.`,
     );
   }
 
@@ -554,20 +554,20 @@ export const loadAdoPrStepLog = async (
   const timeline = await loadAdoBuildTimeline(request.organization, request.project, build.id);
   const stage = timeline.records.find((record) => record.name === request.stageName);
   if (!stage) {
-    throw new Error(`Stage \"${request.stageName}\" was not found in build ${String(build.id)} timeline.`);
+    throw new Error(`Stage "${request.stageName}" was not found in build ${String(build.id)} timeline.`);
   }
 
   const step = findStepRecord(timeline, stage, request.stepName);
   if (!step) {
     throw new Error(
-      `Step \"${request.stepName}\" was not found under stage \"${request.stageName}\" in build ${String(build.id)}.`,
+      `Step "${request.stepName}" was not found under stage "${request.stageName}" in build ${String(build.id)}.`,
     );
   }
 
   const logId = step.log?.id;
   if (!logId) {
     throw new Error(
-      `Step \"${request.stepName}\" in build ${String(build.id)} did not contain a log reference.`,
+      `Step "${request.stepName}" in build ${String(build.id)} did not contain a log reference.`,
     );
   }
 
